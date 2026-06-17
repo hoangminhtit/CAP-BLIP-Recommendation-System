@@ -185,7 +185,8 @@ class PromptLlama2(PromptLLM):
                  auth_token: str,
                  hf_model_id: str = None,
                  hf_cache_dir: str = None,
-                 local_files_only: bool = False
+                 local_files_only: bool = False,
+                 gguf_file: str = None
                  ):
         PromptLLM.__init__(self, llm_name, prompts, itemname_to_id)
         from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
@@ -206,6 +207,11 @@ class PromptLlama2(PromptLLM):
             "local_files_only": local_files_only,
         }
         load_kwargs = {k: v for k, v in load_kwargs.items() if v is not None}
+        model_load_kwargs = dict(load_kwargs)
+        selected_gguf_file = self.resolve_gguf_file(self.model_id, token, gguf_file, local_files_only)
+        if selected_gguf_file:
+            model_load_kwargs["gguf_file"] = selected_gguf_file
+            print(f"{datetime.datetime.now()} -- Using GGUF file: {selected_gguf_file}")
 
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, **load_kwargs)
@@ -220,7 +226,7 @@ class PromptLlama2(PromptLLM):
                 self.model_id,
                 device_map="auto",
                 torch_dtype="auto",
-                **load_kwargs
+                **model_load_kwargs
             )
         except Exception as e:
             self.raise_hf_access_error(e)
@@ -269,6 +275,47 @@ class PromptLlama2(PromptLLM):
             pass
 
         return None, None
+
+    @staticmethod
+    def resolve_gguf_file(model_id: str, token: str = None, gguf_file: str = None, local_files_only: bool = False) -> str:
+        if gguf_file:
+            return gguf_file
+        if "gguf" not in model_id.lower():
+            return None
+        if local_files_only:
+            raise ValueError(
+                "GGUF model detected but --gguf_file was not provided. "
+                "When using --local_files_only, pass the local/repo GGUF filename via --gguf_file."
+            )
+
+        try:
+            from huggingface_hub import list_repo_files
+            repo_files = list_repo_files(model_id, token=token)
+        except Exception as e:
+            raise RuntimeError(
+                f"Could not list GGUF files for {model_id}. "
+                "Pass --gguf_file explicitly, for example --gguf_file <filename>.gguf"
+            ) from e
+
+        gguf_files = [f for f in repo_files if f.lower().endswith(".gguf")]
+        if not gguf_files:
+            raise RuntimeError(f"No .gguf files found in {model_id}.")
+
+        preferred_patterns = [
+            "q4_k_m",
+            "q4_k_s",
+            "q5_k_m",
+            "q5_k_s",
+            "q8_0",
+            "f16",
+        ]
+        lower_to_file = {f.lower(): f for f in gguf_files}
+        for pattern in preferred_patterns:
+            for lower_name, original_name in lower_to_file.items():
+                if pattern in lower_name:
+                    return original_name
+
+        return sorted(gguf_files)[0]
 
     def raise_hf_access_error(self, error: Exception) -> None:
         msg = str(error)
@@ -465,7 +512,8 @@ def main(args):
     else:  # prompt llama2
         prompter = PromptLlama2(args.model, prompts, itemname_to_id,
                                 args.tokenizer_path, args.model_path, args.hf_auth_token,
-                                args.hf_model_id, args.hf_cache_dir, args.local_files_only)
+                                args.hf_model_id, args.hf_cache_dir, args.local_files_only,
+                                args.gguf_file)
     raw_gpt_outputs, reranked_recs = prompter.prompt_model()
     recs["raw_gpt_outputs"] = raw_gpt_outputs
     recs["reranked_recs"] = reranked_recs
@@ -592,6 +640,13 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Load the HuggingFace model only from local cache/path"
+    )
+    parser.add_argument(
+        "--gguf_file",
+        default=None,
+        type=str,
+        required=False,
+        help="GGUF filename inside the HuggingFace repo, e.g. model.Q4_K_M.gguf. If omitted for *GGUF repos, the script auto-selects one."
     )
     parser.add_argument(
         "--run_with_sample_users",

@@ -101,6 +101,30 @@ python experiments/chat-reranking/llm_reranker.py \
 `meta-llama/Meta-Llama-3-8B-Instruct` is also a gated Meta model, so use an
 `HF_TOKEN` from a HuggingFace account that has accepted access to that model.
 
+HuggingFace GGUF example:
+
+```bash
+python experiments/chat-reranking/llm_reranker.py \
+  --datasetpath experiments/chat-reranking/prepared/beauty \
+  --domain "beauty product" \
+  --fold 0 \
+  --model unsloth/Llama-3.2-3B-Instruct-GGUF \
+  --promptpath experiments/chat-reranking/prompts/template_beauty.json \
+  --prompt_id 47 \
+  --baseline_recs lrurec-test-top20.tsv \
+  --rerank_top_m 20 \
+  --top_n 10 \
+  --run_with_sample_users 0 \
+  --debug_mode 1
+```
+
+For GGUF repos, the script auto-selects a `.gguf` file, preferring Q4/Q5
+quantizations. To force a specific file from the repo, add:
+
+```bash
+--gguf_file <filename>.gguf
+```
+
 ## 4. Evaluate output
 
 ```bash
