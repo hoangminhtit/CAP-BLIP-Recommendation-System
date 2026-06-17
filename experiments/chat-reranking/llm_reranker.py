@@ -191,6 +191,8 @@ class PromptLlama2(PromptLLM):
         from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
         self.model_id = self.resolve_model_id(llm_name, model_path, hf_model_id)
+        print(f"{datetime.datetime.now()} -- Requested model argument: {llm_name}")
+        print(f"{datetime.datetime.now()} -- Resolved HuggingFace model id: {self.model_id}")
         token, token_source = self.resolve_hf_token(auth_token)
         if token:
             os.environ["HF_TOKEN"] = token
