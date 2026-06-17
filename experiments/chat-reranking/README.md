@@ -81,6 +81,26 @@ For this gated Meta model, set `HF_TOKEN` in the environment or pass
 `--hf_auth_token`. The token must belong to a HuggingFace account that has
 accepted access to `meta-llama/Llama-2-7b-chat-hf`.
 
+HuggingFace Llama 3 example:
+
+```bash
+python experiments/chat-reranking/llm_reranker.py \
+  --datasetpath experiments/chat-reranking/prepared/beauty \
+  --domain "beauty product" \
+  --fold 0 \
+  --model meta-llama/Meta-Llama-3-8B-Instruct \
+  --promptpath experiments/chat-reranking/prompts/template_beauty.json \
+  --prompt_id 47 \
+  --baseline_recs lrurec-test-top20.tsv \
+  --rerank_top_m 20 \
+  --top_n 10 \
+  --run_with_sample_users 0 \
+  --debug_mode 0
+```
+
+`meta-llama/Meta-Llama-3-8B-Instruct` is also a gated Meta model, so use an
+`HF_TOKEN` from a HuggingFace account that has accepted access to that model.
+
 ## 4. Evaluate output
 
 ```bash

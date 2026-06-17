@@ -15,7 +15,8 @@ MODEL_DICT = {"gpt-3.5-turbo": "gpt-3.5-turbo",
               "Llama-2-7b-chat-hf": "Llama-2-7b-chat-hf",
               "meta-llama/Llama-2-7b-chat-hf": "Llama-2-7b-chat-hf",
               "Llama-2-13b-chat-hf": "Llama-2-13b-chat-hf",
-              "Meta-Llama-3-8B-Instruct": "Llama-3-8b-instruct"
+              "Meta-Llama-3-8B-Instruct": "Llama-3-8b-instruct",
+              "meta-llama/Meta-Llama-3-8B-Instruct": "Llama-3-8b-instruct"
               }
 
 DELIMITERS = {"gpt-3.5-turbo-instruct":  ["<", ">"],
@@ -24,14 +25,15 @@ DELIMITERS = {"gpt-3.5-turbo-instruct":  ["<", ">"],
               "meta-llama/Llama-2-7b-chat-hf": ["{", "}"],
               "Llama-2-13b-chat-hf": ["{", "}"],
               "Meta-Llama-3-8B-Instruct": ["{", "}"],
+              "meta-llama/Meta-Llama-3-8B-Instruct": ["{", "}"],
               "gpt-4-1106-preview": ["<", ">"]
               }
 
 DEFAULT_DELIMITERS = ["<", ">"]
 
 HF_MODEL_REPOS = {
-    "Llama-2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
-    "Llama-2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
+    # "Llama-2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
+    # "Llama-2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
     "Meta-Llama-3-8B-Instruct": "meta-llama/Meta-Llama-3-8B-Instruct",
 }
 

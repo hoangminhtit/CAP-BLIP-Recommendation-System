@@ -20,6 +20,13 @@
       "objective": "diversity",
       "llm": "llama",
       "text": "[INST] <<SYS>>\nYou are a helpful recommendation reranking assistant.\n<</SYS>>\n\nYou are given a ranked recommendation list of <top_m> beauty products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to balance relevance and diversity.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str>\n[/INST]"
+    },
+    {
+      "id": "47",
+      "domain": "beauty products",
+      "objective": "diversity",
+      "llm": "llama3",
+      "text": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are a helpful recommendation reranking assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nYou are given a ranked recommendation list of <top_m> beauty products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to balance relevance and diversity.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str><|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
     }
   ]
 }
