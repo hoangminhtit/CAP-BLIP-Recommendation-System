@@ -189,7 +189,12 @@ class PromptLlama2(PromptLLM):
         from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
         self.model_id = self.resolve_model_id(llm_name, model_path, hf_model_id)
-        token = self.resolve_hf_token(auth_token)
+        token, token_source = self.resolve_hf_token(auth_token)
+        if token:
+            os.environ["HF_TOKEN"] = token
+            print(f"{datetime.datetime.now()} -- Using HuggingFace token from {token_source}.")
+        else:
+            print(f"{datetime.datetime.now()} -- No HuggingFace token found; gated models may fail.")
 
         load_kwargs = {
             "token": token,
@@ -242,20 +247,24 @@ class PromptLlama2(PromptLLM):
         return llm_name
 
     @staticmethod
-    def resolve_hf_token(auth_token: str = None) -> str:
+    def resolve_hf_token(auth_token: str = None) -> tuple:
         if auth_token:
-            return auth_token
+            return auth_token, "--hf_auth_token"
 
         for env_name in ["HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HUGGINGFACEHUB_API_TOKEN"]:
             token = os.environ.get(env_name)
             if token:
-                return token
+                return token, env_name
 
         try:
             from kaggle_secrets import UserSecretsClient
-            return UserSecretsClient().get_secret("HF_TOKEN")
+            token = UserSecretsClient().get_secret("HF_TOKEN")
+            if token:
+                return token, "Kaggle Secret HF_TOKEN"
         except Exception:
-            return None
+            pass
+
+        return None, None
 
     def raise_hf_access_error(self, error: Exception) -> None:
         msg = str(error)
