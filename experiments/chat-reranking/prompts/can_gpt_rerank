@@ -1,0 +1,447 @@
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is to rank this list in alphabetical order.
+```
+0.-> Hundred
+1.-> The Millionaire Detective – Balance:UNLIMITED
+2.-> Freaky Highschool
+3.-> Arte
+4.-> Infinite Ryvius
+5.-> Is this A Zombie? of the Dead
+6.-> A Christmas Adventure
+7.-> Junjo Romantica
+8.-> Rokka:Braves of the Six Flowers
+9.-> Wooser's Hand-to-Mouth Life:Awakening Arc
+10.-> Jormungand Season 2:Perfect Order
+11.-> Genshiken
+12.-> Shirobako
+13.-> Scum's Wish
+14.-> Inuyashiki:Last Hero
+15.-> My Name Is Teppei
+16.-> Magical Project S
+17.-> Hand Shakers
+18.-> Tekkaman Blade
+19.-> Pretty Cure
+```
+
+OUTPUT: 
+```
+6.-> A Christmas Adventure
+3.-> Arte
+2.-> Freaky Highschool
+11.-> Genshiken
+17.-> Hand Shakers
+0.-> Hundred
+14.-> Inuyashiki:Last Hero
+4.-> Infinite Ryvius
+5.-> Is this A Zombie? of the Dead
+10.-> Jormungand Season 2:Perfect Order
+7.-> Junjo Romantica
+15.-> My Name Is Teppei
+19.-> Pretty Cure
+8.-> Rokka:Braves of the Six Flowers
+13.-> Scum's Wish
+12.-> Shirobako
+16.-> Magical Project S
+18.-> Tekkaman Blade
+1.-> The Millionaire Detective – Balance:UNLIMITED
+9.-> Wooser's Hand-to-Mouth Life:Awakening Arc
+```
+EVALUATION: "Magical Project S" is in the wrong position
+
+
+
+
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is to order this list in alphabetical order.
+```
+0.-> Hundred
+1.-> The Millionaire Detective – Balance:UNLIMITED
+2.-> Freaky Highschool
+3.-> Arte
+4.-> Infinite Ryvius
+5.-> Is this A Zombie? of the Dead
+6.-> A Christmas Adventure
+7.-> Junjo Romantica
+8.-> Rokka:Braves of the Six Flowers
+9.-> Wooser's Hand-to-Mouth Life:Awakening Arc
+10.-> Jormungand Season 2:Perfect Order
+11.-> Genshiken
+12.-> Shirobako
+13.-> Scum's Wish
+14.-> Inuyashiki:Last Hero
+15.-> My Name Is Teppei
+16.-> Magical Project S
+17.-> Super Wings 2
+18.-> Caribadix
+19.-> Super Wings
+20.-> Caribadix 2nd Season
+```
+
+OUTPUT
+```
+6.-> A Christmas Adventure
+3.-> Arte
+18.-> Caribadix
+20.-> Caribadix 2nd Season
+2.-> Freaky Highschool
+11.-> Genshiken
+0.-> Hundred
+4.-> Infinite Ryvius
+14.-> Inuyashiki:Last Hero
+5.-> Is this A Zombie? of the Dead
+7.-> Junjo Romantica
+10.-> Jormungand Season 2:Perfect Order
+15.-> My Name Is Teppei
+13.-> Scum's Wish
+12.-> Shirobako
+16.-> Magical Project S
+17.-> Super Wings 2
+19.-> Super Wings
+8.-> Rokka:Braves of the Six Flowers
+9.-> Wooser's Hand-to-Mouth Life:Awakening Arc
+1.-> The Millionaire Detective – Balance:UNLIMITED
+```
+EVALUATION: "Super Wings 2" and "Super Wings" should swap positions
+
+#############################################################################
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is rank anime in this list by popularity.
+```
+Tsubasa RESERVoir CHRoNiCLE Season Two
+El-Hazard:The Wanderers
+Gintama Season 2
+Beet the Vandel Buster
+Umamusume:Pretty Derby
+Bobobo-bo Bo-bobo
+GG Bond:Ultimate Battle Prequel
+Rozen Maiden:Zurückspulen
+Cardfight!! Vanguard:Shinemon Arc
+Prince Mackaroo
+Samurai Deeper Kyo
+New Game!!
+Trigun
+ChäoS;Child
+Beautiful Bones -Sakurako's Investigation-
+The Ones Within
+Tiger & Bunny
+Cat Eyed Boy
+Vampire Princess Miyu
+Show By Rock!! 2
+```
+
+OUTPUT
+1. Gintama Season 2
+2. Trigun
+3. New Game!!
+4. Tiger & Bunny
+5. Tsubasa RESERVoir CHRoNiCLE Season Two
+6. Umamusume:Pretty Derby
+7. Rozen Maiden:Zurückspulen
+8. ChäoS;Child
+9. Beautiful Bones -Sakurako's Investigation-
+10. Vampire Princess Miyu
+11. Samurai Deeper Kyo
+12. Bobobo-bo Bo-bobo
+13. Cardfight!! Vanguard:Shinemon Arc
+14. The Ones Within
+15. El-Hazard: The Wanderers
+16. Beet the Vandel Buster
+17. Show By Rock!! 2
+18. GG Bond: Ultimate Battle Prequel
+19. Prince Mackaroo
+20. Cat Eyed Boy
+EVALUATION: accordingly to the rank-biased-overlap metrics, the two lists are similar with 0.79 score
+
+
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is rank anime in this list by popularity.
+```
+Super Lovers 2
+Wings of Dragon
+Wagnaria!!3
+What's Up Mechadoc
+UFO Ultramaiden Valkyrie 2:December Nocturne
+You and Me.
+Operation Han-Gyaku-Sei Million Arthur
+My Girlfriend is Shobitch
+March Comes In Like A Lion 2nd Season
+Princess Princess
+Aria the Natural
+Listen to Me, Girls. I Am Your Father!
+Macron One
+Ben-To
+Yatogame-chan Kansatsu Nikki 2
+Pukipuki and Poi
+Skip Beat!
+You're Under Arrest:Fast & Furious
+Red Data Girl
+Evil or Live
+```
+OUTPUT:
+Based on popularity, the ranked list of anime would be:
+
+1. Super Lovers 2
+2. Wagnaria!!3
+3. My Girlfriend is Shobitch
+4. March Comes In Like A Lion 2nd Season
+5. Aria the Natural
+6. Listen to Me, Girls. I Am Your Father!
+7. Ben-To
+8. Skip Beat!
+9. You're Under Arrest: Fast & Furious
+10. Red Data Girl
+11. Wings of Dragon
+12. What's Up Mechadoc
+13. UFO Ultramaiden Valkyrie 2: December Nocturne
+14. You and Me.
+15. Operation Han-Gyaku-Sei Million Arthur
+16. Princess Princess
+17. Macron One
+18. Yatogame-chan Kansatsu Nikki 2
+19. Pukipuki and Poi
+20. Evil or Live
+EVALUATION: accordingly to the rank-biased-overlap metrics, the two lists are similar with 0.54 score
+
+#############################################################################################################
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is rank anime in this list by release date (from newest to oldest).
+```
+Digimon Adventure 02
+Chobits
+Fighting Spirit
+Chrono Crusade
+The Great Passage
+Kiba
+Green Green
+Poccolies
+Sekko Boys
+Teasing Master Takagi-san
+Steel Angel Kurumi
+A Centaur's Life
+Persona:Trinity Soul
+Magical Princess Minky Momo:Hold on to Your Dreams
+Coral Investigates
+The Pet Girl of Sakurasou
+The Affectuous Family
+Earl and Fairy
+Vividred Operation
+Golden Time
+```
+
+OUTPUT
+Here is the list of anime ranked by release date from newest to oldest:
+
+1. Poccolies
+2. The Great Passage
+3. Coral Investigates
+4. Teasing Master Takagi-san
+5. The Pet Girl of Sakurasou
+6. Vividred Operation
+7. Golden Time
+8. A Centaur's Life
+9. Persona: Trinity Soul
+10. The Affectuous Family
+11. Chobits
+12. Steel Angel Kurumi
+13. Chrono Crusade
+14. Fighting Spirit
+15. Kiba
+16. Green Green
+17. Digimon Adventure 02
+18. Magical Princess Minky Momo: Hold on to Your Dreams
+19. Earl and Fairy
+20. Sekko Boys
+EVALUATION: accordingly to the rank-biased-overlap metrics, the two lists are similar with 0.70 score
+
+
+You are given a list of 20 anime, delimited by triple backticks.
+Your task is rank anime in this list by release date (from newest to oldest).
+```
+Bakugan:Battle Planet
+Attack on Titan
+Ultramaniac - Magical Girl
+Mrs. Sazae
+Dagashi Kashi
+Caribadix
+Blue Comet SPT Layzner
+Natsume's Book of Friends Season 5
+Erin
+Ori-Princess 2nd Season
+Super Heavy God Gravion Zwei
+Samurai Harem
+Diabolik Lovers
+Ninja Girl & Samurai Master
+IDOLiSH7
+Fate/Zero Season 2
+Maerchen Maedchen
+General Inakappe
+Eternal Alice
+The Girl in Twilight
+```
+
+OUTPUT
+Here is the list of anime ranked by release date from newest to oldest:
+
+1. Bakugan: Battle Planet
+2. Attack on Titan
+3. Ultramaniac - Magical Girl
+4. Mrs. Sazae
+5. Dagashi Kashi
+6. Caribadix
+7. Blue Comet SPT Layzner
+8. Natsume's Book of Friends Season 5
+9. Erin
+10. Ori-Princess 2nd Season
+11. Super Heavy God Gravion Zwei
+12. Samurai Harem
+13. Diabolik Lovers
+14. Ninja Girl & Samurai Master
+15. IDOLiSH7
+16. Fate/Zero Season 2
+17. Maerchen Maedchen
+18. General Inakappe
+19. Eternal Alice
+20. The Girl in Twilight
+EVALUATION: accordingly to the rank-biased-overlap metrics, the two lists are similar with 0.34 score
+
+##################################################################################################################
+
+INPUT: list A is only Comedy, accordingly to the genres of the dataset.
+The second list has more than 10 different genres. List B should be selected
+
+You are given two lists of 10 anime each, list A and list B, delimited by triple backticks.
+Which of the two lists is more diverse?
+
+```
+LIST A:
+Mr. Stain on Junk Alley
+Let's Dance with Papa
+King of Classroom, Yamazaki
+Poo-Neko
+The Adventures of the Little Koala
+Oscar's Oasis
+The Affectuous Family
+Little Wansa
+Hippo and Thomas
+Weekly Shimako
+
+LIST B:
+Hundred
+The Millionaire Detective – Balance:UNLIMITED
+Freaky Highschool
+Arte
+Infinite Ryvius
+Is this A Zombie? of the Dead
+A Christmas Adventure
+Junjo Romantica
+Rokka:Braves of the Six Flowers
+Wooser's Hand-to-Mouth Life:Awakening Arc
+Jormungand Season 2:Perfect Order
+```
+
+OUTPUT:
+Diversity in anime can be assessed based on various factors such as genre, themes, art style, target audience, and more.
+Let's analyze the two lists in terms of genre diversity since it's a common way to measure variety in anime.
+
+List A:
+
+    Mr. Stain on Junk Alley: Stop-motion animation, comedy
+    Let's Dance with Papa: Slice of life, comedy
+    King of Classroom, Yamazaki: Comedy, school
+    Poo-Neko: Adventure, fantasy
+    The Adventures of the Little Koala: Adventure, children
+    Oscar's Oasis: Adventure, comedy
+    The Affectionate Family: Comedy, family
+    Little Wansa: Adventure, children
+    Hippo and Thomas: Adventure, children
+    Weekly Shimako: Slice of life, comedy
+
+List B:
+
+    Hundred: Action, harem
+    The Millionaire Detective – Balance:UNLIMITED: Mystery, drama
+    Freaky Highschool: Supernatural, comedy
+    Arte: Historical, drama
+    Infinite Ryvius: Sci-fi, drama
+    Is this A Zombie? of the Dead: Action, comedy, supernatural
+    A Christmas Adventure: Christmas, adventure
+    Junjo Romantica: Romance, drama
+    Rokka: Braves of the Six Flowers: Fantasy, mystery
+    Wooser's Hand-to-Mouth Life: Awakening Arc: Comedy, slice of life
+    Jormungand Season 2: Perfect Order: Action, adventure
+
+In terms of genre diversity, both lists showcase a variety of genres. However, List B appears to have a broader range
+of genres, including action, mystery, supernatural, historical, romance, and Christmas-themed anime. List A, on the
+other hand, leans more towards adventure, comedy, and slice of life genres. Therefore, List B is more diverse in terms
+of genres.
+
+######################################################################################################################
+INPUT: list A and B are made by items with different genres
+
+You are given two lists of 10 anime each, list A and list B, delimited by triple backticks.
+Which of the two lists is more diverse?
+
+```
+LIST A:
+
+The Millionaire Detective – Balance:UNLIMITED
+Freaky Highschool
+Arte
+Infinite Ryvius
+Is this A Zombie? of the Dead
+A Christmas Adventure
+Junjo Romantica
+Rokka:Braves of the Six Flowers
+Wooser's Hand-to-Mouth Life:Awakening Arc
+
+LIST B:
+Jormungand Season 2:Perfect Order
+Genshiken
+Shirobako
+Scum's Wish
+Inuyashiki:Last Hero
+My Name Is Teppei
+Magical Project S
+Hand Shakers
+Tekkaman Blade
+Pretty Cure
+```
+
+OUTPUT:
+To assess diversity in anime, we can consider various factors such as genre, themes, art style, and target audience.
+Let's analyze the two lists in terms of genre diversity:
+
+List A:
+
+    The Millionaire Detective – Balance:UNLIMITED: Mystery, drama
+    Freaky Highschool: Supernatural, comedy
+    Arte: Historical, drama
+    Infinite Ryvius: Sci-fi, drama
+    Is this A Zombie? of the Dead: Action, comedy, supernatural
+    A Christmas Adventure: Christmas, adventure
+    Junjo Romantica: Romance, drama
+    Rokka: Braves of the Six Flowers: Fantasy, mystery
+    Wooser's Hand-to-Mouth Life: Awakening Arc: Comedy, slice of life
+
+List B:
+
+    Jormungand Season 2: Perfect Order: Action, adventure
+    Genshiken: Comedy, slice of life
+    Shirobako: Slice of life, comedy
+    Scum's Wish: Drama, romance
+    Inuyashiki: Last Hero: Action, drama, sci-fi
+    My Name Is Teppei: Sports, drama
+    Magical Project S: Magic, comedy
+    Hand Shakers: Action, drama, fantasy
+    Tekkaman Blade: Action, sci-fi
+    Pretty Cure: Action, adventure, magic
+
+In terms of genre diversity, both lists showcase a variety of genres. List B, however, seems to have a broader range,
+including action, adventure, comedy, slice of life, drama, romance, sci-fi, magic, and sports. List A also covers
+multiple genres, but it has a stronger emphasis on drama and romance, with fewer distinct genres represented.
+Therefore, List B is more diverse in terms of genres.
+
+
+
+
+
