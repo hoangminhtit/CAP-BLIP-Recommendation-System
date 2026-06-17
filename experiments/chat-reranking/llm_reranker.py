@@ -189,7 +189,7 @@ class PromptLlama2(PromptLLM):
         from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
         self.model_id = self.resolve_model_id(llm_name, model_path, hf_model_id)
-        token = auth_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+        token = self.resolve_hf_token(auth_token)
 
         load_kwargs = {
             "token": token,
@@ -198,17 +198,23 @@ class PromptLlama2(PromptLLM):
         }
         load_kwargs = {k: v for k, v in load_kwargs.items() if v is not None}
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, **load_kwargs)
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, **load_kwargs)
+        except Exception as e:
+            self.raise_hf_access_error(e)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         print(f"{datetime.datetime.now()} -- Loaded tokenizer from {self.model_id}!")
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            device_map="auto",
-            torch_dtype="auto",
-            **load_kwargs
-        )
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_id,
+                device_map="auto",
+                torch_dtype="auto",
+                **load_kwargs
+            )
+        except Exception as e:
+            self.raise_hf_access_error(e)
         print(f"{datetime.datetime.now()} -- Loaded model from {self.model_id}!")
 
         self.generation_pipe = pipeline(
@@ -234,6 +240,36 @@ class PromptLlama2(PromptLLM):
         if model_path:
             return os.path.join(model_path, llm_name)
         return llm_name
+
+    @staticmethod
+    def resolve_hf_token(auth_token: str = None) -> str:
+        if auth_token:
+            return auth_token
+
+        for env_name in ["HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HUGGINGFACEHUB_API_TOKEN"]:
+            token = os.environ.get(env_name)
+            if token:
+                return token
+
+        try:
+            from kaggle_secrets import UserSecretsClient
+            return UserSecretsClient().get_secret("HF_TOKEN")
+        except Exception:
+            return None
+
+    def raise_hf_access_error(self, error: Exception) -> None:
+        msg = str(error)
+        if "gated repo" in msg.lower() or "401" in msg or "Unauthorized" in msg:
+            raise RuntimeError(
+                "\nCannot load gated HuggingFace model "
+                f"'{self.model_id}'.\n"
+                "Fix:\n"
+                "1. Open the model page and request/accept access with your HuggingFace account.\n"
+                "2. Create a HuggingFace access token from that same account.\n"
+                "3. On Kaggle, add it as a Secret named HF_TOKEN, or pass --hf_auth_token.\n"
+                "4. Enable internet for the Kaggle notebook/session.\n"
+            ) from error
+        raise error
 
     def prompt_model(self) -> (list, list):
 
