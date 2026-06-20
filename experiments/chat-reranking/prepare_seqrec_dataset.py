@@ -50,7 +50,7 @@ def build_item_maps(df: pd.DataFrame, max_chars: int) -> Tuple[Dict[int, str], D
     return itemid_to_name, itemname_to_id
 
 
-def export_split_files(df: pd.DataFrame, out_dir: Path) -> None:
+def export_split_files(df: pd.DataFrame, out_dir: Path, sample_users: int = 0, sample_seed: int = 42) -> None:
     fold_dir = out_dir / "fold_0"
     fold_dir.mkdir(parents=True, exist_ok=True)
 
@@ -65,9 +65,12 @@ def export_split_files(df: pd.DataFrame, out_dir: Path) -> None:
     pd.Series(items).to_csv(fold_dir / "items.csv", header=False, index=False)
 
     test_users = sorted(df[df["split"] == "test"]["user_id"].dropna().astype(int).unique())
+    if sample_users and sample_users > 0 and sample_users < len(test_users):
+        rng = random.Random(sample_seed)
+        test_users = sorted(rng.sample(test_users, sample_users))
     pd.Series(test_users).to_csv(fold_dir / "sample_test_users.csv", sep="\t", header=False, index=False)
 
-    sample_test = df[df["split"] == "test"][["user_id", "item_new_id"]].copy()
+    sample_test = df[(df["split"] == "test") & (df["user_id"].isin(test_users))][["user_id", "item_new_id"]].copy()
     sample_test["rating"] = 1
     sample_test.to_csv(fold_dir / "sample_test_data.csv", sep="\t", header=False, index=False)
 
@@ -156,6 +159,13 @@ def main() -> None:
     parser.add_argument("--baseline_name", default=None)
     parser.add_argument("--max_name_chars", type=int, default=160)
     parser.add_argument("--fallback_popularity", action="store_true")
+    parser.add_argument(
+        "--sample_users",
+        type=int,
+        default=0,
+        help="Number of test users to write to fold_0/sample_test_users.csv. 0 means all test users.",
+    )
+    parser.add_argument("--sample_seed", type=int, default=42)
     args = parser.parse_args()
 
     source_dir = preprocessed_dir(args.data_root, args.dataset_code, args.min_rating, args.min_uc, args.min_sc)
@@ -169,7 +179,7 @@ def main() -> None:
     df = pd.read_csv(source_csv)
     itemid_to_name, itemname_to_id = build_item_maps(df, args.max_name_chars)
     write_helper_pickles(out_dir, itemid_to_name, itemname_to_id)
-    export_split_files(df, out_dir)
+    export_split_files(df, out_dir, args.sample_users, args.sample_seed)
 
     retrieved_csv = args.retrieved_csv
     if retrieved_csv is None:
@@ -203,6 +213,8 @@ def main() -> None:
         "baseline_name": baseline_name,
         "num_items": len(itemid_to_name),
         "num_users": int(df["user_id"].nunique()),
+        "sample_users": int(args.sample_users),
+        "sample_seed": int(args.sample_seed),
         "num_candidate_rows": int(len(baseline)),
     }
     with (out_dir / "manifest.json").open("w", encoding="utf-8") as f:

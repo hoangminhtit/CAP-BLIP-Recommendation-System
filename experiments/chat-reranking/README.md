@@ -32,6 +32,23 @@ python experiments/chat-reranking/prepare_seqrec_dataset.py \
 
 For a quick smoke test before retrieval is available, add `--fallback_popularity`.
 
+To keep a lower-core dataset but make LLM reranking affordable, sample a fixed
+number of test users:
+
+```bash
+python experiments/chat-reranking/prepare_seqrec_dataset.py \
+  --dataset_code beauty \
+  --min_rating 3 --min_uc 6 --min_sc 6 \
+  --retrieval_method lrurec \
+  --seed 42 \
+  --split test \
+  --top_m 20 \
+  --sample_users 500 \
+  --sample_seed 42
+```
+
+Then run `llm_reranker.py` with `--run_with_sample_users 1`.
+
 The prepared files are written to:
 
 ```text
