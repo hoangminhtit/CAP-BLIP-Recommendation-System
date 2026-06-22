@@ -1,0 +1,32 @@
+{
+  "templates": [
+    {
+      "id": "1",
+      "domain": "sports and outdoors products",
+      "objective": "diversity",
+      "llm": "chatgpt",
+      "text": "You are given a ranked recommendation list of <top_m> sports and outdoors products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to balance relevance and diversity.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str>"
+    },
+    {
+      "id": "2",
+      "domain": "sports and outdoors products",
+      "objective": "diversity",
+      "llm": "chatgpt",
+      "text": "You are given a ranked recommendation list of <top_m> sports and outdoors products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to maximize diversity across sport categories, outdoor activities, product types, brands, and use cases while preserving likely relevance.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str>"
+    },
+    {
+      "id": "7",
+      "domain": "sports and outdoors products",
+      "objective": "diversity",
+      "llm": "llama",
+      "text": "[INST] <<SYS>>\nYou are a helpful recommendation reranking assistant.\n<</SYS>>\n\nYou are given a ranked recommendation list of <top_m> sports and outdoors products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to balance relevance and diversity.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str>\n[/INST]"
+    },
+    {
+      "id": "47",
+      "domain": "sports and outdoors products",
+      "objective": "diversity",
+      "llm": "llama3",
+      "text": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are a helpful recommendation reranking assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nYou are given a ranked recommendation list of <top_m> sports and outdoors products for a user, delimited by triple backticks.\nYour task is to re-rank this candidate list and provide a final top-<top_n> recommendation list where the goal is to balance relevance and diversity across sport categories, outdoor activities, product types, brands, and use cases.\n\nStrictly use the following format for the output, and don't provide additional information.\n\n<out_format_str>\n\n<candidate_str><|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    }
+  ]
+}
