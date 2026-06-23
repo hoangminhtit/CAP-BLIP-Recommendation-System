@@ -101,6 +101,7 @@ def main():
     print("=" * 80)
     print(f"Retrieval: {args.retrieval_method} (top_k={args.retrieval_top_k})")
     print(f"Rerank: {args.rerank_method} (top_k={args.rerank_top_k}, mode={args.rerank_mode})")
+    print(f"Dataset: {arg.dataset_code} (min_rating={arg.min_rating}, min_uc={arg.min_uc}, min_sc={arg.min_sc})")
     if args.sample_users > 0:
         sample_seed = args.sample_seed if args.sample_seed is not None else arg.seed
         print(f"User sample: {args.sample_users} users (seed={sample_seed})")

@@ -147,8 +147,21 @@ def load_dataset_from_csv(
     csv_path = get_preprocessed_csv_path(dataset_code, min_rating, min_uc, min_sc)
     
     if not csv_path.exists():
+        preprocessed_root = csv_path.parent.parent
+        available = []
+        if preprocessed_root.exists():
+            available = sorted(
+                p.name for p in preprocessed_root.iterdir()
+                if p.is_dir() and p.name.startswith(f"{dataset_code}_")
+            )
+        available_msg = ""
+        if available:
+            available_msg = f" Available preprocessed folders for {dataset_code}: {available}"
         raise FileNotFoundError(
-            f"CSV export not found at {csv_path}. Run data_prepare.py first."
+            f"CSV export not found at {csv_path}. "
+            f"Run data_prepare.py first with the same dataset/filter arguments, "
+            f"or pass matching --dataset_code/--min_rating/--min_uc/--min_sc to this script."
+            f"{available_msg}"
         )
     
     df = pd.read_csv(csv_path)
