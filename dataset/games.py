@@ -117,7 +117,8 @@ class GamesDataset(AbstractDataset):
             if items_to_remove:
                 print(f'Removing {len(items_to_remove)} items without valid images...')
                 # Lọc df để loại bỏ items không có image
-                df = df[df['sid'].isin(valid_image_items)]
+                valid_dense_items = {smap[item_id] for item_id in valid_image_items if item_id in smap}
+                df = df[df['sid'].isin(valid_dense_items)]
                 # Tạo lại mapping
                 df, umap, smap = self.densify_index(df)
                 print(f'Final items after image filtering: {len(smap)}')

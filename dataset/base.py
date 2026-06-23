@@ -70,7 +70,11 @@ class AbstractDataset(metaclass=ABCMeta):
         if not csv_path.is_file():
             return None
         
-        df = pd.read_csv(csv_path)
+        try:
+            df = pd.read_csv(csv_path)
+        except pd.errors.EmptyDataError:
+            print(f'Found empty preprocessed CSV at {csv_path}. Rebuilding dataset...')
+            return None
         # Reconstruct train/val/test, meta, smap. umap cannot be recovered from CSV.
         df = df.reset_index(drop=False).rename(columns={"index": "row_order"})
         grouped = (
