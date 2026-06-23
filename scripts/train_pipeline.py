@@ -213,10 +213,15 @@ def main():
     retriever_kwargs = {
         "item_count": item_count,
         "val_data": val,
+        "num_epochs": arg.retrieval_epochs,
+        "batch_size": arg.batch_size_retrieval,
+        "patience": arg.retrieval_patience,
+        "num_workers": arg.num_workers_retrieval,
+        "lr": arg.retrieval_lr,
     }
     pipeline.fit(
         train,
-        retriever_kwargs={"item_count": item_count, "val_data": val},
+        retriever_kwargs=retriever_kwargs,
         reranker_kwargs=reranker_kwargs  # Pass standardized reranker kwargs
     )
     

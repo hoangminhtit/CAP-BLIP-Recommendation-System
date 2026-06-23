@@ -97,6 +97,18 @@ class LRURecRetriever(BaseRetriever):
         item_count = kwargs.get("item_count")
         if item_count is None:
             raise ValueError("LRURecRetriever.fit requires 'item_count' in kwargs")
+        if kwargs.get("num_epochs") is not None:
+            self.num_epochs = int(kwargs["num_epochs"])
+        if kwargs.get("batch_size") is not None:
+            self.batch_size = int(kwargs["batch_size"])
+        if kwargs.get("patience") is not None:
+            self.patience = int(kwargs["patience"])
+        if kwargs.get("num_workers") is not None:
+            self.num_workers = int(kwargs["num_workers"])
+        if kwargs.get("lr") is not None:
+            self.lr = float(kwargs["lr"])
+        if kwargs.get("weight_decay") is not None:
+            self.weight_decay = float(kwargs["weight_decay"])
         self.item_count = int(item_count)
         self.user_history = train_data
         val_data: Dict[int, List[int]] | None = kwargs.get("val_data")
