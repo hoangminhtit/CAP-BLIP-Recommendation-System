@@ -13,6 +13,10 @@ parser.add_argument('--metric_k', type=int, default=None, help='Cutoff for evalu
 parser.add_argument('--retrieval_top_k', type=int, default=None, help='Number of candidates from Stage 1 (used by train_pipeline.py)')
 parser.add_argument('--rerank_method', type=str, default=None, help='Rerank method (used by train_pipeline.py)')
 parser.add_argument('--rerank_mode', type=str, default=None, help='Rerank mode (used by train_pipeline.py)')
+parser.add_argument('--sample_users', type=int, default=0,
+					help='Limit train_pipeline.py to a fixed number of users. 0 means use all users.')
+parser.add_argument('--sample_seed', type=int, default=None,
+					help='Random seed for --sample_users. If None, uses --seed.')
 
 #=========================================================================
 # Data preparation arguments

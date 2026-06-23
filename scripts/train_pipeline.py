@@ -14,7 +14,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 import argparse
-from typing import Dict, List, Optional
+import random
+from typing import Dict, List, Optional, Set
 
 # Note: config import is moved to main() to avoid argument parsing conflicts
 from dataset import dataset_factory
@@ -43,6 +44,36 @@ def evaluate_pipeline(
     return evaluate_split(pipeline.recommend, split, k=k, ks=ks, ground_truth_mode=ground_truth_mode)
 
 
+def _filter_users(split: Dict[int, List[int]], user_ids: Set[int]) -> Dict[int, List[int]]:
+    """Return a split containing only selected users."""
+    return {user_id: items for user_id, items in split.items() if user_id in user_ids}
+
+
+def _sample_pipeline_users(
+    train: Dict[int, List[int]],
+    val: Dict[int, List[int]],
+    test: Dict[int, List[int]],
+    sample_users: int,
+    sample_seed: int
+) -> Set[int]:
+    """Sample users for a smaller end-to-end pipeline run.
+
+    Prefer test users so the final reported test metrics are computed exactly
+    on the sampled evaluation cohort.
+    """
+    eval_users = sorted(set(test.keys()))
+    if not eval_users:
+        eval_users = sorted(set(val.keys()))
+    if not eval_users:
+        eval_users = sorted(set(train.keys()))
+
+    if sample_users <= 0 or sample_users >= len(eval_users):
+        return set(eval_users)
+
+    rng = random.Random(sample_seed)
+    return set(rng.sample(eval_users, sample_users))
+
+
 def main():
     # Import config (it now includes script-specific arguments as optional)
     from config import arg, EXPERIMENT_ROOT
@@ -58,6 +89,8 @@ def main():
         qwen_mode = getattr(arg, 'qwen_mode', None)
         qwen_model = getattr(arg, 'qwen_model', None)
         qwen3vl_mode = getattr(arg, 'qwen3vl_mode', None)  # Legacy
+        sample_users = getattr(arg, 'sample_users', 0) or 0
+        sample_seed = getattr(arg, 'sample_seed', None)
     
     args = Args()
     
@@ -68,6 +101,9 @@ def main():
     print("=" * 80)
     print(f"Retrieval: {args.retrieval_method} (top_k={args.retrieval_top_k})")
     print(f"Rerank: {args.rerank_method} (top_k={args.rerank_top_k}, mode={args.rerank_mode})")
+    if args.sample_users > 0:
+        sample_seed = args.sample_seed if args.sample_seed is not None else arg.seed
+        print(f"User sample: {args.sample_users} users (seed={sample_seed})")
     
     print("=" * 80)
     
@@ -83,6 +119,14 @@ def main():
     val = data["val"]
     test = data["test"]
     item_count = data["item_count"]
+
+    if args.sample_users > 0:
+        sample_seed = args.sample_seed if args.sample_seed is not None else arg.seed
+        selected_users = _sample_pipeline_users(train, val, test, args.sample_users, sample_seed)
+        train = _filter_users(train, selected_users)
+        val = _filter_users(val, selected_users)
+        test = _filter_users(test, selected_users)
+        print(f"  Applied user sampling: {len(selected_users)} selected users")
     
     print(f"  Train users: {len(train)}")
     print(f"  Val users: {len(val)}")
@@ -159,7 +203,7 @@ def main():
         # Add item_meta for multimodal modes (caption, VIU)
         if args.rerank_method.lower() in ["qwen", "qwen3vl"]:
             # Get mode from config
-            qwen_mode_val = qwen_mode or (args.qwen3vl_mode if args.rerank_method.lower() == "qwen3vl" else "text_only")
+            qwen_mode_val = args.qwen_mode or (args.qwen3vl_mode if args.rerank_method.lower() == "qwen3vl" else "text_only")
             if qwen_mode_val in ["caption", "VIU"]:
                 reranker_kwargs["item_meta"] = item_meta
     
