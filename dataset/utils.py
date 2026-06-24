@@ -228,7 +228,8 @@ def download_and_verify_images_batch(items_dict, image_folder, max_workers=10):
             item_id, save_path = future_to_item[future]
             try:
                 if future.result():
-                    downloaded_images[item_id] = save_path
+                    # Store as string path to avoid pandas writing "PosixPath('...')" into CSV.
+                    downloaded_images[item_id] = str(save_path)
                     valid_items.add(item_id)
             except Exception:
                 pass  # Failed to download

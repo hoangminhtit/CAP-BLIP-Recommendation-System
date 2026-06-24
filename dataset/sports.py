@@ -13,19 +13,20 @@ import json
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+
 tqdm.pandas()
 
 
-class GamesDataset(AbstractDataset):
+class SportsDataset(AbstractDataset):
     @classmethod
     def code(cls):
-        return 'games'
+        return 'sports'
 
     @classmethod
     def url(cls):
-        # meta_Video_Games.json.gz from snap.stanford.edu does not contain full meta info
-        return ['http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/ratings_Video_Games.csv',
-                'https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_v2/metaFiles2/meta_Video_Games.json.gz']
+        return ['http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/ratings_Sports_and_Outdoors.csv',
+                'http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/meta_Sports_and_Outdoors.json.gz']
 
     @classmethod
     def zip_file_content_is_folder(cls):
@@ -33,8 +34,8 @@ class GamesDataset(AbstractDataset):
 
     @classmethod
     def all_raw_file_names(cls):
-        return ['games.csv', 'games_meta.json.gz']
-
+        return ['ratings_Sports_and_Outdoors.csv', 'meta_Sports_and_Outdoors.json.gz']
+ 
     def maybe_download_raw_dataset(self):
         folder_path = self._get_rawdata_folder_path()
         if folder_path.is_dir() and\
@@ -121,9 +122,11 @@ class GamesDataset(AbstractDataset):
         df, umap, smap = self.densify_index(df)
         train, val, test = self.split_df(df, len(umap))
         meta = {smap[k]: v for k, v in meta_raw.items() if k in smap}
-        # Export CSV and keep in-memory dataset for compatibility
+        # Save CSV export instead of pickle so downstream tools can use CSV-only workflow
         preproc_folder = dataset_path.parent
         rows = []
+
+        # invert smap to get original item ids
         inv_smap = {v: k for k, v in smap.items()}
 
         def add_rows(split_name, split_dict):
@@ -151,7 +154,7 @@ class GamesDataset(AbstractDataset):
         df_out = pd.DataFrame(rows)
         out_csv = preproc_folder.joinpath('dataset_single_export.csv')
         df_out.to_csv(out_csv, index=False)
-
+        # still keep meta/smap/umap in memory if other callers expect them
         dataset = {'train': train,
                    'val': val,
                    'test': test,
@@ -196,12 +199,6 @@ class GamesDataset(AbstractDataset):
                 
                 # Extract image URL
                 image = item.get('imUrl', '').strip()
-                if not image:
-                    image = item.get('imageURL', '').strip()
-                if not image and 'imageURLHighRes' in item:
-                    img_urls = item['imageURLHighRes']
-                    if isinstance(img_urls, list) and len(img_urls) > 0:
-                        image = img_urls[0].strip()
                 
                 # Store metadata with text and image
                 meta_dict[asin] = {

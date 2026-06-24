@@ -10,14 +10,17 @@ This module provides helper functions to get standardized paths for:
 from pathlib import Path
 from typing import Optional
 
-from config import EXPERIMENT_ROOT, RAW_DATASET_ROOT_FOLDER
+# Default values (can be overridden by config)
+EXPERIMENT_ROOT = 'experiments'
+RAW_DATASET_ROOT_FOLDER = 'data'
 
 
 def get_preprocessed_folder_path(
     dataset_code: str,
     min_rating: int,
     min_uc: int,
-    min_sc: int
+    min_sc: int,
+    data_path: Optional[str] = None,
 ) -> Path:
     """Get path to preprocessed dataset folder.
     
@@ -26,11 +29,13 @@ def get_preprocessed_folder_path(
         min_rating: Minimum rating threshold
         min_uc: Minimum user count
         min_sc: Minimum item count
+        data_path: Path to data folder (defaults to RAW_DATASET_ROOT_FOLDER)
         
     Returns:
         Path to preprocessed folder
     """
-    preprocessed_root = Path(RAW_DATASET_ROOT_FOLDER) / "preprocessed"
+    root = data_path if data_path is not None else RAW_DATASET_ROOT_FOLDER
+    preprocessed_root = Path(root) / "preprocessed"
     folder_name = f"{dataset_code}_min_rating{min_rating}-min_uc{min_uc}-min_sc{min_sc}"
     return preprocessed_root / folder_name
 
@@ -39,7 +44,8 @@ def get_preprocessed_csv_path(
     dataset_code: str,
     min_rating: int,
     min_uc: int,
-    min_sc: int
+    min_sc: int,
+    data_path: Optional[str] = None,
 ) -> Path:
     """Get path to preprocessed CSV file.
     
@@ -48,11 +54,12 @@ def get_preprocessed_csv_path(
         min_rating: Minimum rating threshold
         min_uc: Minimum user count
         min_sc: Minimum item count
+        data_path: Path to data folder (defaults to RAW_DATASET_ROOT_FOLDER)
         
     Returns:
         Path to dataset_single_export.csv
     """
-    folder = get_preprocessed_folder_path(dataset_code, min_rating, min_uc, min_sc)
+    folder = get_preprocessed_folder_path(dataset_code, min_rating, min_uc, min_sc, data_path)
     return folder / "dataset_single_export.csv"
 
 

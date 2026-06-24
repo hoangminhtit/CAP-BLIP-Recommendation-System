@@ -6,7 +6,7 @@ This module provides common functions used across training and evaluation script
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from evaluation.metrics import recall_at_k, ndcg_at_k
+from evaluation.metrics import recall_at_k, ndcg_at_k, mrr_at_k
 from dataset import dataset_factory
 
 
@@ -50,7 +50,7 @@ def evaluate_split(
         return {"num_users": 0, **{f"recall@{k}": 0.0 for k in ks}, **{f"ndcg@{k}": 0.0 for k in ks}, **{f"hit@{k}": 0.0 for k in ks}}
     
     # Initialize lists for each K
-    metrics_by_k = {k_val: {"recalls": [], "ndcgs": [], "hits": []} for k_val in ks}
+    metrics_by_k = {k_val: {"recalls": [], "ndcgs": [], "hits": [], "mrrs": []} for k_val in ks}
     
     skipped_no_gt = 0
     skipped_no_recs = 0
@@ -83,10 +83,11 @@ def evaluate_split(
             r = recall_at_k(recs, gt_items, k_val)
             n = ndcg_at_k(recs, gt_items, k_val)
             h = hit_at_k(recs, gt_items, k_val)
-            
+            m = mrr_at_k(recs, gt_items, k_val)
             metrics_by_k[k_val]["recalls"].append(r)
             metrics_by_k[k_val]["ndcgs"].append(n)
             metrics_by_k[k_val]["hits"].append(h)
+            metrics_by_k[k_val]["mrrs"].append(m)
         
         # Update progress bar description
         if evaluated % batch_size == 0:
@@ -108,10 +109,12 @@ def evaluate_split(
             result[f"recall@{k_val}"] = float(sum(metrics_by_k[k_val]["recalls"]) / len(metrics_by_k[k_val]["recalls"]))
             result[f"ndcg@{k_val}"] = float(sum(metrics_by_k[k_val]["ndcgs"]) / len(metrics_by_k[k_val]["ndcgs"]))
             result[f"hit@{k_val}"] = float(sum(metrics_by_k[k_val]["hits"]) / len(metrics_by_k[k_val]["hits"]))
+            result[f"mrr@{k_val}"] = float(sum(metrics_by_k[k_val]["mrrs"]) / len(metrics_by_k[k_val]["mrrs"]))
         else:
             result[f"recall@{k_val}"] = 0.0
             result[f"ndcg@{k_val}"] = 0.0
             result[f"hit@{k_val}"] = 0.0
+            result[f"mrr@{k_val}"] = 0.0
     
     # Backward compatibility: also include "recall" and "ndcg" for the first K
     if len(ks) > 0:
@@ -147,21 +150,8 @@ def load_dataset_from_csv(
     csv_path = get_preprocessed_csv_path(dataset_code, min_rating, min_uc, min_sc)
     
     if not csv_path.exists():
-        preprocessed_root = csv_path.parent.parent
-        available = []
-        if preprocessed_root.exists():
-            available = sorted(
-                p.name for p in preprocessed_root.iterdir()
-                if p.is_dir() and p.name.startswith(f"{dataset_code}_")
-            )
-        available_msg = ""
-        if available:
-            available_msg = f" Available preprocessed folders for {dataset_code}: {available}"
         raise FileNotFoundError(
-            f"CSV export not found at {csv_path}. "
-            f"Run data_prepare.py first with the same dataset/filter arguments, "
-            f"or pass matching --dataset_code/--min_rating/--min_uc/--min_sc to this script."
-            f"{available_msg}"
+            f"CSV export not found at {csv_path}. Run data_prepare.py first."
         )
     
     df = pd.read_csv(csv_path)
@@ -192,11 +182,14 @@ def load_dataset_from_csv(
         image_path = row.get("item_image_path") if not pd.isna(row.get("item_image_path")) else None
         caption = row.get("item_caption") if not pd.isna(row.get("item_caption")) else None
         viu = row.get("item_viu") if not pd.isna(row.get("item_viu")) else None
+        summary = row.get("item_summary") if "item_summary" in row and not pd.isna(row.get("item_summary")) else None
         meta[int(item_new_id)] = {
             "text": text,
             "image_path": image_path,
             "caption": caption,
-            "viu": viu
+            "viu": viu,
+            "summary": summary,
+            "semantic_summary": summary,
         }
     
     # Build smap

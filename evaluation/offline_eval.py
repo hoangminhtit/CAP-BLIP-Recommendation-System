@@ -13,7 +13,7 @@ import pickle
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
-from evaluation.metrics import recall_at_k, ndcg_at_k, hit_at_k
+from evaluation.metrics import recall_at_k, ndcg_at_k, hit_at_k, mrr_at_k
 from pipelines.base import PipelineConfig, RetrievalConfig, RerankConfig, TwoStagePipeline
 from retrieval import get_retriever_class
 from rerank import get_reranker_class
@@ -47,7 +47,7 @@ def evaluate_users(
     ground_truth: Dict[int, List[int]],
     ks: List[int] = [5, 10, 20],
 ) -> Dict[str, float]:
-    """Tính trung bình Recall@K, NDCG@K, và Hit@K trên một tập user cho nhiều K values.
+    """Tính trung bình Recall@K, NDCG@K, Hit@K, và MMR/MRR@K trên một tập user cho nhiều K values.
     
     Args:
         users: List of user IDs
@@ -58,7 +58,7 @@ def evaluate_users(
     Returns:
         Dict with keys: recall@K, ndcg@K, hit@K for each K in ks
     """
-    metrics_by_k = {k: {"recalls": [], "ndcgs": [], "hits": []} for k in ks}
+    metrics_by_k = {k: {"recalls": [], "ndcgs": [], "hits": [], "mrrs": []} for k in ks}
     
     for u in users:
         gt_items = ground_truth.get(u, [])
@@ -70,9 +70,11 @@ def evaluate_users(
             r = recall_at_k(recs, gt_items, k)
             n = ndcg_at_k(recs, gt_items, k)
             h = hit_at_k(recs, gt_items, k)
+            m = mrr_at_k(recs, gt_items, k)
             metrics_by_k[k]["recalls"].append(r)
             metrics_by_k[k]["ndcgs"].append(n)
             metrics_by_k[k]["hits"].append(h)
+            metrics_by_k[k]["mrrs"].append(m)
 
     result = {}
     for k in ks:
@@ -80,10 +82,12 @@ def evaluate_users(
             result[f"recall@{k}"] = float(sum(metrics_by_k[k]["recalls"]) / len(metrics_by_k[k]["recalls"]))
             result[f"ndcg@{k}"] = float(sum(metrics_by_k[k]["ndcgs"]) / len(metrics_by_k[k]["ndcgs"]))
             result[f"hit@{k}"] = float(sum(metrics_by_k[k]["hits"]) / len(metrics_by_k[k]["hits"]))
+            result[f"mrr@{k}"] = float(sum(metrics_by_k[k]["mrrs"]) / len(metrics_by_k[k]["mrrs"]))
         else:
             result[f"recall@{k}"] = 0.0
             result[f"ndcg@{k}"] = 0.0
             result[f"hit@{k}"] = 0.0
+            result[f"mrr@{k}"] = 0.0
     
     return result
 
@@ -308,7 +312,7 @@ def main() -> None:
     print("-" * 80)
     print(f"{'Metric':<12} {'@1':>10} {'@5':>10} {'@10':>10} {'@20':>10}")
     print("-" * 80)
-    for metric_name in ["recall", "ndcg", "hit"]:
+    for metric_name in ["recall", "ndcg", "hit", "mrr"]:
         values = [metrics.get(f"{metric_name}@{k}", 0.0) for k in ks]
         print(f"{metric_name.capitalize():<12} {values[0]:>10.4f} {values[1]:>10.4f} {values[2]:>10.4f} {values[3]:>10.4f}")
     print("=" * 80)

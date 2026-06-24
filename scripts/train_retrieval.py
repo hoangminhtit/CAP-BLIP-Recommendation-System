@@ -197,17 +197,10 @@ def _evaluate_split(
         # We need to call it for each K value and build the result dict
         result = {"num_users": len(split)}
         
-        # For efficiency, compute recall for all K values using optimized _evaluate_split.
-        # Some retrievers (LRURec/BERT4Rec) return a metrics dict, while multimodal
-        # retrievers return a bare recall float. Support both contracts here.
+        # For efficiency, compute recall for all K values using optimized _evaluate_split
         for k_val in ks:
-            split_metrics = retriever._evaluate_split(split, k=k_val)
-            if isinstance(split_metrics, dict):
-                result[f"recall@{k_val}"] = float(split_metrics.get("recall", 0.0))
-                result[f"ndcg@{k_val}"] = float(split_metrics.get("ndcg", 0.0))
-                result["num_users"] = int(split_metrics.get("num_users", result["num_users"]))
-            else:
-                result[f"recall@{k_val}"] = float(split_metrics)
+            recall = retriever._evaluate_split(split, k=k_val)
+            result[f"recall@{k_val}"] = float(recall)
         
         # ✅ FIX: Compute NDCG and Hit on ALL users (same as Recall) for consistency
         # Previously, NDCG/Hit were computed on a small sample (100 users), which could lead to
@@ -386,6 +379,8 @@ def _evaluate_split(
                 
                 result[f"ndcg@{k_val}"] = float(sum(ndcgs) / len(ndcgs)) if ndcgs else 0.0
                 result[f"hit@{k_val}"] = float(sum(hits) / len(hits)) if hits else 0.0
+        
+        return result
         
         return result
     else:

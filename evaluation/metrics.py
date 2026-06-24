@@ -1,4 +1,4 @@
-"""Ranking metrics: Recall@K, NDCG@K, MRR@K, and batch evaluation utilities."""
+"""Ranking metrics: Recall@K, NDCG@K, MRR@K, MMR@K, and batch utilities."""
 
 from math import log2
 from typing import Dict, Iterable, List
@@ -71,6 +71,23 @@ def hit_at_k(recommended: List[int], ground_truth: Iterable[int], k: int) -> flo
         return 0.0
     rec_k = recommended[:k]
     return 1.0 if len(gt.intersection(rec_k)) > 0 else 0.0
+
+
+def mrr_at_k(recommended: List[int], ground_truth: Iterable[int], k: int) -> float:
+    """Compute Mean Reciprocal Rank (MRR) at K for a single user.
+
+    Returns 1/rank of the first relevant item within top-K, else 0.
+    """
+    if k <= 0:
+        return 0.0
+    gt = set(ground_truth)
+    if not gt:
+        return 0.0
+    rec_k = recommended[:k]
+    for idx, item_id in enumerate(rec_k):
+        if item_id in gt:
+            return 1.0 / float(idx + 1)
+    return 0.0
 
 
 def absolute_recall_mrr_ndcg_for_ks(

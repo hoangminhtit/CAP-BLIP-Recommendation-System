@@ -4,7 +4,56 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from tqdm import tqdm
 from PIL import Image
-from .reduce_viu import reduce_viu_for_reranker
+
+
+def _debug_image_discovery(meta: Dict[int, Dict[str, Any]], num_items: int, sample: int = 8) -> None:
+    try:
+        cwd = os.getcwd()
+    except Exception:
+        cwd = "<unknown>"
+
+    keys = list(meta.keys())
+    key_min = min(keys) if keys else None
+    key_max = max(keys) if keys else None
+
+    non_empty = 0
+    exists = 0
+    posix_wrapped = 0
+    windows_wrapped = 0
+    http_url = 0
+    samples = []
+
+    for item_id in range(1, num_items + 1):
+        info = meta.get(item_id, {})
+        image_path = info.get("image_path") or info.get("image")
+        if not image_path:
+            continue
+        non_empty += 1
+        if isinstance(image_path, str):
+            if image_path.startswith("PosixPath('") and image_path.endswith("')"):
+                posix_wrapped += 1
+            if image_path.startswith("WindowsPath('") and image_path.endswith("')"):
+                windows_wrapped += 1
+            if image_path.startswith("http://") or image_path.startswith("https://"):
+                http_url += 1
+        try:
+            ok = os.path.isfile(image_path)
+        except Exception:
+            ok = False
+        if ok:
+            exists += 1
+        if len(samples) < sample:
+            samples.append((item_id, image_path, ok))
+
+    print("[qwen3vl] Image discovery debug")
+    print(f"  cwd={cwd}")
+    print(f"  meta_size={len(meta)} meta_key_min={key_min} meta_key_max={key_max} num_items_arg={num_items}")
+    print(f"  non_empty_image_path={non_empty} file_exists={exists}")
+    print(f"  posix_wrapped={posix_wrapped} windows_wrapped={windows_wrapped} http_url={http_url}")
+    if samples:
+        print("  samples (item_id, image_path, isfile):")
+        for item_id, path, ok in samples:
+            print(f"    - {item_id}: {path} | isfile={ok}")
 
 try:
     from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
@@ -220,6 +269,7 @@ def generate_viu(
     
     if not items_with_img:
         print("No images found for VIU generation")
+        _debug_image_discovery(meta, num_items)
         return {}
     
     print(f"Generating VIU for {len(items_with_img)} images...")

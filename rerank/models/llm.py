@@ -1,6 +1,7 @@
 
 ##%%writefile /kaggle/working/rerank/models/llm.py
 from unsloth import FastLanguageModel
+import inspect
 import torch
 import torch.nn.functional as F
 import string
@@ -14,6 +15,33 @@ import logging
 # Legacy: Keep for backward compatibility, but now we use numbers
 # Use both uppercase and lowercase for up to 52 candidates (A-Z, a-z)
 LETTERS = list(string.ascii_uppercase) + list(string.ascii_lowercase)  # A-Z, a-z (52 letters)
+
+
+def _patch_lora_config_for_old_peft():
+    """Drop ensure_weight_tying for older peft versions.
+
+    Some Kaggle images ship a peft build whose ``LoraConfig`` does not accept
+    the ``ensure_weight_tying`` keyword that Unsloth forwards. We patch the
+    Unsloth import to ignore that argument so training does not crash.
+    """
+    try:
+        from peft import LoraConfig as PeftLoraConfig
+        import unsloth.models.llama as unsloth_llama
+
+        if "ensure_weight_tying" in inspect.signature(PeftLoraConfig.__init__).parameters:
+            return  # Compatible peft is already installed
+
+        original_cls = unsloth_llama.LoraConfig
+
+        class PatchedLoraConfig(original_cls):
+            def __init__(self, *args, **kwargs):
+                kwargs.pop("ensure_weight_tying", None)
+                super().__init__(*args, **kwargs)
+
+        unsloth_llama.LoraConfig = PatchedLoraConfig
+        print("Patched Unsloth LoraConfig to drop ensure_weight_tying for old peft.")
+    except Exception as e:
+        print(f"Warning: failed to patch LoraConfig compatibility: {e}")
 
 
 def build_prompt_from_candidates(user_history, candidate_ids, item_id2text, max_candidates=None):
@@ -133,6 +161,7 @@ class LLMModel:
             - If self.model_name points to a path with adapter weights, Unsloth will automatically
               load the adapter. Otherwise, it loads base model and prepares for training.
         """
+        _patch_lora_config_for_old_peft()
         # Get max_seq_length from config if not provided
         if max_seq_length is None:
             try:
@@ -293,7 +322,7 @@ class LLMModel:
             
             raise ValueError(f"Invalid messages format: {type(messages_list)}")
         
-        # ✅ Map to format as text (like notebook Cell 7) - use batched=True for efficiency
+        # ✅ Map to format as text (like notebook Cell 7) - fix num_proc to 2 for stability
         hf_train_dataset = hf_train_dataset.map(
             formatting_prompts_func,
             batched=True,  # Process in batches for efficiency (like notebook)

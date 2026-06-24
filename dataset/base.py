@@ -6,7 +6,7 @@ from pathlib import Path
 import gzip
 from abc import *
 from .utils import *
-from config import RAW_DATASET_ROOT_FOLDER
+# RAW_DATASET_ROOT_FOLDER = 'data'  # Default, can be overridden by args
 
 import numpy as np
 import pandas as pd
@@ -73,7 +73,16 @@ class AbstractDataset(metaclass=ABCMeta):
         try:
             df = pd.read_csv(csv_path)
         except pd.errors.EmptyDataError:
-            print(f'Found empty preprocessed CSV at {csv_path}. Rebuilding dataset...')
+            # Common when a previous run wrote an empty CSV (no columns) due to filtering.
+            # Treat as invalid so caller can re-run preprocessing.
+            print(f"[dataset] WARNING: CSV exists but is empty: {csv_path}. Will re-run preprocessing.")
+            return None
+        except Exception as e:
+            print(f"[dataset] WARNING: Failed to read CSV {csv_path}: {e}. Will re-run preprocessing.")
+            return None
+
+        if df is None or df.empty:
+            print(f"[dataset] WARNING: CSV has no rows: {csv_path}. Will re-run preprocessing.")
             return None
         # Reconstruct train/val/test, meta, smap. umap cannot be recovered from CSV.
         df = df.reset_index(drop=False).rename(columns={"index": "row_order"})
@@ -98,7 +107,23 @@ class AbstractDataset(metaclass=ABCMeta):
         for item_new_id, row in meta_df.iterrows():
             text = row.get("item_text") if not pd.isna(row.get("item_text")) else None
             image_path = row.get("item_image_path") if not pd.isna(row.get("item_image_path")) else None
-            meta[int(item_new_id)] = {"text": text, "image_path": image_path}
+            caption = row.get("item_caption") if "item_caption" in row and not pd.isna(row.get("item_caption")) else None
+            viu = row.get("item_viu") if "item_viu" in row and not pd.isna(row.get("item_viu")) else None
+            summary = row.get("item_summary") if "item_summary" in row and not pd.isna(row.get("item_summary")) else None
+            if isinstance(image_path, str):
+                # Handle legacy serialization like "PosixPath('data/.../img.jpg')" or "WindowsPath('...')".
+                for prefix in ("PosixPath('", "WindowsPath('"):
+                    if image_path.startswith(prefix) and image_path.endswith("')"):
+                        image_path = image_path[len(prefix):-2]
+                        break
+            meta[int(item_new_id)] = {
+                "text": text,
+                "image_path": image_path,
+                "caption": caption,
+                "viu": viu,
+                "summary": summary,
+                "semantic_summary": summary,
+            }
 
         smap = {}
         map_df = df[~df["Item_id"].isna()].drop_duplicates(subset=["Item_id"]).copy()
@@ -185,7 +210,9 @@ class AbstractDataset(metaclass=ABCMeta):
         return train, val, test
 
     def _get_rawdata_root_path(self):
-        return Path(RAW_DATASET_ROOT_FOLDER)
+        # Use data_path from args if provided, else default to 'data'
+        data_path = getattr(self.args, 'data_path', None)
+        return Path(data_path if data_path is not None else 'data')
 
     def _get_rawdata_folder_path(self):
         root = self._get_rawdata_root_path()

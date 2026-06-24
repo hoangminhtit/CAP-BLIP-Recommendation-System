@@ -1,7 +1,8 @@
 venv/
 data/*
+experiments/*
 readme/*
-report/*
+
 
 # Python cache files
 __pycache__/

@@ -161,7 +161,7 @@ class ML100KDataset(AbstractDataset):
             title = row[2][:-7]  # remove year (optional)
             year = row[2][-7:]
 
-            title = re.sub('\(.*?\)', '', title).strip()
+            title = re.sub(r'\(.*?\)', '', title).strip()
             # the rest articles and parentheses are not considered here
             if any(', '+x in title.lower()[-5:] for x in ['a', 'an', 'the']):
                 title_pre = title.split(', ')[:-1]

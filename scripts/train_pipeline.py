@@ -228,8 +228,8 @@ def main():
     # Evaluate Stage 1
     print(f"\n[3/4] Evaluating Stage 1...")
     ks = [5, 10, 20]
-    val_metrics_stage1 = evaluate_pipeline(pipeline, val, k=args.metric_k, ks=ks)
-    test_metrics_stage1 = evaluate_pipeline(pipeline, test, k=args.metric_k, ks=ks)
+    val_metrics_stage1 = evaluate_split(pipeline.retriever.retrieve, val, k=args.metric_k, ks=ks)
+    test_metrics_stage1 = evaluate_split(pipeline.retriever.retrieve, test, k=args.metric_k, ks=ks)
     
     print(f"  Val Metrics:")
     print(f"    {'Metric':<12} {'@5':>10} {'@10':>10} {'@20':>10}")

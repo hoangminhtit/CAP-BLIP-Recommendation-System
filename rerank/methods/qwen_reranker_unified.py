@@ -123,24 +123,26 @@ MODEL_MAPPING = {
 class QwenReranker(BaseReranker):
     """Unified Qwen reranker supporting multiple prompt modes.
     
-    **IMPORTANT**: All 3 modes (`text_only`, `caption`, `VIU`) use the SAME training
+    **IMPORTANT**: All 4 modes (`text_only`, `caption`, `VIU`, `summary`) use the SAME training
     and evaluation process. They ONLY differ in how the prompt is built:
     - `text_only`: Uses only item text: "{text}"
     - `caption`: Adds caption info: "{text} (Image: {caption})"
     - `VIU`: Adds VIU: "{text} (VIU: {viu})"
+    - `summary`: Uses precomputed item summaries: "{item_summary}" (falls back to text when missing)
     
     All modes use the same LLMModel (for all models including qwen3-2bvl),
     with identical training loops, loss functions, and evaluation metrics.
     
-    **3 Prompt Modes**:
+    **4 Prompt Modes**:
     1. `text_only`: Chỉ sử dụng description (text)
     2. `caption`: Sử dụng image caption (thêm thông tin caption vào prompt)
     3. `VIU`: Sử dụng image VIU (thêm thông tin VIU vào prompt)
+    4. `summary`: Sử dụng item_summary đã sinh sẵn (ưu tiên), fallback về text nếu thiếu
     
     **3 Model Options**:
-    1. `qwen3-0.6b`: Text model (for text_only, caption, VIU modes)
-    2. `qwen3-2bvl`: Can be used for all modes (text_only, caption, VIU) - uses LLMModel
-    3. `qwen3-1.6b`: Text model (for text_only, caption, VIU modes)
+    1. `qwen3-0.6b`: Text model (for text_only, caption, VIU, summary modes)
+    2. `qwen3-2bvl`: Can be used for caption/VIU modes (uses LLMModel); not recommended for text_only/summary
+    3. `qwen3-1.6b`: Text model (for text_only, caption, VIU, summary modes)
     
     Note: Even `qwen3-2bvl` (VL model) uses LLMModel for caption/VIU modes
     because captions/VIU are pre-generated text, not images.
@@ -149,6 +151,7 @@ class QwenReranker(BaseReranker):
     - Mode `text_only`: Requires text in item_meta or item_id2text
     - Mode `caption`: Requires captions in item_meta (run data_prepare.py with --generate_caption)
     - Mode `VIU`: Requires VIU in item_meta (run data_prepare.py with --generate_viu)
+    - Mode `summary`: Requires item_summary in item_meta (run generate_item_summary.py or data_prepare with summary enabled)
     """
     
     def __init__(
@@ -166,7 +169,7 @@ class QwenReranker(BaseReranker):
         """
         Args:
             top_k: Số lượng items trả về sau rerank
-            mode: Prompt mode - "text_only", "caption", "VIU"
+            mode: Prompt mode - "text_only", "caption", "VIU", "summary"
             model: Model name - "qwen3-0.6b", "qwen3-2bvl", "qwen3-1.6b"
             max_history: Số lượng items trong history để dùng cho prompt (None = lấy từ config, default: 5)
             max_candidates: Maximum number of candidates to process (None = no limit)
@@ -214,9 +217,9 @@ class QwenReranker(BaseReranker):
         self.patience = patience
         
         # Validate mode
-        if self.mode not in ["text_only", "caption", "VIU"]:
+        if self.mode not in ["text_only", "caption", "VIU", "summary"]:
             raise ValueError(
-                f"Invalid mode: {self.mode}. Must be one of: text_only, caption, VIU"
+                f"Invalid mode: {self.mode}. Must be one of: text_only, caption, VIU, summary"
             )
         
         # Validate model
@@ -226,7 +229,7 @@ class QwenReranker(BaseReranker):
             print(f"[QwenReranker] Available mappings: {list(MODEL_MAPPING.keys())}")
         
         # Validate mode-model compatibility
-        if self.mode == "text_only" and self.model_name == "qwen3-2bvl":
+        if self.mode in ["text_only", "summary"] and self.model_name == "qwen3-2bvl":
             raise ValueError(
                 "text_only mode requires text model (qwen3-0.6b or qwen3-1.6b), not qwen3-2bvl"
             )
@@ -298,12 +301,11 @@ class QwenReranker(BaseReranker):
         use_torch_compile = getattr(arg, 'use_torch_compile', False)
         
         # Load model based on mode and model type
-        # ✅ IMPORTANT: All 3 modes (text_only, caption, VIU) use the SAME model and training process.
-        #    They ONLY differ in prompt format (caption/VIU add extra info to prompt).
-        # ✅ REFACTORED: All caption/VIU modes use LLMModel because captions/VIU 
-        #    are pre-generated text (no need for VL model, even if using qwen3-2bvl).
+        # ✅ IMPORTANT: All 4 modes (text_only, caption, VIU, summary) use the SAME model and training process.
+        #    They ONLY differ in prompt format (caption/VIU add extra info, summary uses item_summary text).
+        # ✅ REFACTORED: All caption/VIU/summary modes use LLMModel because inputs are pre-generated text.
         #    Qwen3VLModel is only needed for raw_image mode (loading images directly), which is not supported here.
-        use_text_model = self.mode in ["text_only", "caption", "VIU"]
+        use_text_model = self.mode in ["text_only", "caption", "VIU", "summary"]
         
         if use_text_model:
             # ✅ Use LLMModel for ALL modes (text_only, caption, VIU)
@@ -315,7 +317,7 @@ class QwenReranker(BaseReranker):
             train_data_for_llm = kwargs.get("train_data_for_llm")
             
             # For caption/VIU modes, prepare training data from item_meta
-            if self.mode in ["caption", "VIU"] and train_data_for_llm is None:
+            if self.mode in ["caption", "VIU", "summary"] and train_data_for_llm is None:
                 train_samples = self._prepare_training_samples(train_data)
                 if len(train_samples) > 0:
                     # Convert to LLM training format
@@ -343,6 +345,12 @@ class QwenReranker(BaseReranker):
                                     history_texts.append(f"{text} (VIU: {viu})")
                                 else:
                                     history_texts.append(text)
+                            elif self.mode == "summary":
+                                summary = meta.get("item_summary") or meta.get("summary")
+                                if summary:
+                                    history_texts.append(summary)
+                                else:
+                                    history_texts.append(text)
                         
                         candidate_texts = []
                         for item_id in candidates:
@@ -358,6 +366,12 @@ class QwenReranker(BaseReranker):
                                 viu = meta.get("viu", "")
                                 if viu:
                                     candidate_texts.append(f"{text} (VIU: {viu})")
+                                else:
+                                    candidate_texts.append(text)
+                            elif self.mode == "summary":
+                                summary = meta.get("item_summary") or meta.get("summary")
+                                if summary:
+                                    candidate_texts.append(summary)
                                 else:
                                     candidate_texts.append(text)
                         
@@ -470,11 +484,10 @@ Candidate items:
         history = history[-self.max_history:]  # Truncate to max_history
         
         # Predict probabilities based on mode and model type
-        # ✅ IMPORTANT: All 3 modes use the SAME evaluation process. They only differ in prompt format.
-        # ✅ REFACTORED: All caption/VIU modes use LLMModel because captions/VIU 
-        #    are pre-generated text (no need for VL model, even if using qwen3-2bvl).
+        # ✅ IMPORTANT: All 4 modes use the SAME evaluation process. They only differ in prompt format.
+        # ✅ REFACTORED: All caption/VIU/summary modes use LLMModel because inputs are pre-generated text.
         num_candidates = len(candidates)
-        use_text_model = self.mode in ["text_only", "caption", "VIU"]
+        use_text_model = self.mode in ["text_only", "caption", "VIU", "summary"]
         
         if use_text_model:
             # ✅ Use LLMModel for ALL modes (text_only, caption, VIU)
@@ -494,7 +507,7 @@ Candidate items:
                     max_candidates=self.max_candidates
                 )
             else:
-                # Build prompt with caption/VIU for caption/VIU modes
+                # Build prompt with caption/VIU/summary for non-text-only modes
                 history_texts = []
                 for item_id in history[-self.max_history:]:
                     meta = self.item_meta.get(item_id, {})
@@ -509,6 +522,12 @@ Candidate items:
                         viu = meta.get("viu", "")
                         if viu:
                             history_texts.append(f"{text} (VIU: {viu})")
+                        else:
+                            history_texts.append(text)
+                    elif self.mode == "summary":
+                        summary = meta.get("item_summary") or meta.get("summary")
+                        if summary:
+                            history_texts.append(summary)
                         else:
                             history_texts.append(text)
                 
@@ -526,6 +545,12 @@ Candidate items:
                         viu = meta.get("viu", "")
                         if viu:
                             candidate_texts.append(f"{text} (VIU: {viu})")
+                        else:
+                            candidate_texts.append(text)
+                    elif self.mode == "summary":
+                        summary = meta.get("item_summary") or meta.get("summary")
+                        if summary:
+                            candidate_texts.append(summary)
                         else:
                             candidate_texts.append(text)
                 
@@ -572,7 +597,7 @@ Candidate items:
                     self._eval_prompts_analyzed = True
                     self._eval_prompts_count_at_analysis = len(self._eval_prompts)
                 # Final analysis if we've collected significantly more prompts (e.g., 10x more)
-                elif self._eval_prompts_analyzed and len(self._eval_prompts) >= self._eval_prompts_count_at_analysis * 10:
+                elif self._eval_prompts_analyzed and len(self._eval_prompts) >= self._eval_prompts_count_at_analysis + 1000:
                     print(f"\n[QwenReranker] Final eval prompt token analysis (all {len(self._eval_prompts)} prompts):")
                     self._analyze_eval_prompt_tokens()
                     self._eval_prompts_count_at_analysis = len(self._eval_prompts)  # Update to avoid repeated prints
@@ -1057,11 +1082,12 @@ Candidate items:
     def _build_training_prompt(self, sample: Dict) -> str:
         """Build training prompt from sample.
         
-        ✅ IMPORTANT: This is the ONLY place where modes differ. All 3 modes (text_only, caption, VIU)
-           use the same training process, loss function, and evaluation. They only differ in prompt format:
-           - text_only: "{text}"
-           - caption: "{text} (Image: {caption})"
-           - VIU: "{text} (VIU: {viu})"
+          ✅ IMPORTANT: This is the ONLY place where modes differ. All 4 modes (text_only, caption, VIU, summary)
+              use the same training process, loss function, and evaluation. They only differ in prompt format:
+              - text_only: "{text}"
+              - caption: "{text} (Image: {caption})"
+              - VIU: "{text} (VIU: {viu})"
+              - summary: "{item_summary}" (fallback to text if missing)
         """
         history = sample["history"]
         candidates = sample["candidates"]
@@ -1073,9 +1099,6 @@ Candidate items:
             if self.mode == "caption":
                 caption = meta.get("caption", "")
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
@@ -1085,20 +1108,23 @@ Candidate items:
             elif self.mode == "VIU":
                 viu = meta.get("viu", "")
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     history_texts.append(f"{text} (VIU: {viu})")
                 else:
                     history_texts.append(text)
+            elif self.mode == "summary":
+                summary = meta.get("item_summary") or meta.get("summary")
+                if summary:
+                    history_texts.append(summary)
+                else:
+                    text = meta.get("text", f"item_{item_id}")
+                    truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                    text = _truncate_item_text(text, max_chars=truncate_limit)
+                    history_texts.append(text)
             else:  # text_only mode
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 history_texts.append(text)
@@ -1110,9 +1136,6 @@ Candidate items:
             if self.mode == "caption":
                 caption = meta.get("caption", "")
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
@@ -1122,20 +1145,23 @@ Candidate items:
             elif self.mode == "VIU":
                 viu = meta.get("viu", "")
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     candidate_texts.append(f"{text} (VIU: {viu})")
                 else:
                     candidate_texts.append(text)
+            elif self.mode == "summary":
+                summary = meta.get("item_summary") or meta.get("summary")
+                if summary:
+                    candidate_texts.append(summary)
+                else:
+                    text = meta.get("text", f"item_{item_id}")
+                    truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                    text = _truncate_item_text(text, max_chars=truncate_limit)
+                    candidate_texts.append(text)
             else:  # text_only mode
                 text = meta.get("text", f"item_{item_id}")
-                # Avoid double truncation: text was already truncated to max_text_length during data preparation
-                # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
                 truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 candidate_texts.append(text)
@@ -1372,7 +1398,7 @@ Candidate items:
                 from config import arg
                 
                 all_candidates = load_rerank_candidates(
-                    dataset_code=getattr(arg, 'dataset', 'beauty'),
+                    dataset_code=getattr(arg, 'dataset_code', 'beauty'),
                     min_rating=getattr(arg, 'min_rating', 0),
                     min_uc=getattr(arg, 'min_uc', 5),
                     min_sc=getattr(arg, 'min_sc', 5),
@@ -1467,7 +1493,10 @@ Candidate items:
         if user_histories is None:
             user_histories = self.user_history
         
-        use_text_model = self.mode == "text_only" or (self.mode in ["caption", "VIU"] and self.model_name in ["qwen3-0.6b", "qwen3-1.6b"])
+        use_text_model = (
+            self.mode in ["text_only", "summary"]
+            or (self.mode in ["caption", "VIU", "summary"] and self.model_name in ["qwen3-0.6b", "qwen3-1.6b"])
+        )
         
         for user_id in users:
             candidates = candidates_by_user.get(user_id, [])

@@ -7,17 +7,6 @@ EXPERIMENT_ROOT = 'experiments'
 
 
 parser = argparse.ArgumentParser(description='Configuration for the project.')
-
-parser.add_argument('--rerank_top_k', type=int, default=None, help='Number of final recommendations (used by train_pipeline.py)')
-parser.add_argument('--metric_k', type=int, default=None, help='Cutoff for evaluation metrics (used by train_pipeline.py)')
-parser.add_argument('--retrieval_top_k', type=int, default=None, help='Number of candidates from Stage 1 (used by train_pipeline.py)')
-parser.add_argument('--rerank_method', type=str, default=None, help='Rerank method (used by train_pipeline.py)')
-parser.add_argument('--rerank_mode', type=str, default=None, help='Rerank mode (used by train_pipeline.py)')
-parser.add_argument('--sample_users', type=int, default=0,
-					help='Limit train_pipeline.py to a fixed number of users. 0 means use all users.')
-parser.add_argument('--sample_seed', type=int, default=None,
-					help='Random seed for --sample_users. If None, uses --seed.')
-
 #=========================================================================
 # Data preparation arguments
 #=========================================================================
@@ -33,6 +22,19 @@ parser.add_argument('--generate_caption', action='store_true', default=False,
                     help='Generate BLIP2 captions for images and save to CSV')
 parser.add_argument('--generate_viu', action='store_true', default=False,
                     help='Generate Qwen3 VL VIU for images and save to CSV')
+parser.add_argument('--generate_item_summary', action='store_true', default=False,
+					help='Generate semantic summaries from item text plus caption/VIU using Qwen3-4B')
+parser.add_argument('--summary_source', type=str, default='auto',
+					choices=['auto', 'caption', 'viu', 'text_only'],
+					help='Which auxiliary field to include with text when building the summary prompt')
+parser.add_argument('--summary_batch_size', type=int, default=4,
+					help='Batch size for item summary generation (controls prompts per generation call)')
+parser.add_argument('--summary_max_new_tokens', type=int, default=64,
+					help='Maximum new tokens for each generated summary')
+parser.add_argument('--summary_temperature', type=float, default=0.7,
+					help='Sampling temperature for item summary generation (set 0 for greedy)')
+parser.add_argument('--summary_language', type=str, default='en',
+					help='Language code for generated summaries (e.g., en, vi)')
 parser.add_argument('--viu_batch_size', type=int, default=8,
 					help='Batch size for VIU generation (increase if GPU memory allows, recommended: 8-16 for T4)')
 parser.add_argument('--viu_max_tokens', type=int, default=128,
@@ -43,6 +45,7 @@ parser.add_argument('--use_torch_compile', action='store_true', default=True,
 					help='Use torch.compile() for faster inference (requires PyTorch 2.0+)')
 parser.add_argument('--preload_all_images', action='store_true', default=True,
 					help='Pre-load all images into memory before processing (faster but uses more RAM)')
+
 
 #===========================================================================
 # Training retrieval arguments
@@ -88,42 +91,11 @@ parser.add_argument('--vbpr_optimizer', type=str, default='adam',
 					choices=['adam', 'sgd'],
 					help='VBPR optimizer (default: adam, recommended for better convergence)')
 
-#===========================================================================
-# BM3-specific hyperparameters
-#===========================================================================
-parser.add_argument('--bm3_embed_dim', type=int, default=128,
-					help='BM3 embedding dimension (default: 64, recommended: 128-256 for better performance)')
-parser.add_argument('--bm3_layers', type=int, default=2,
-					help='BM3 number of MLP layers for feature fusion (default: 1, recommended: 2-3 for better performance)')
-parser.add_argument('--bm3_dropout', type=float, default=0.05,
-					help='BM3 dropout rate (default: 0.1, range: 0.0-0.5, lower dropout may improve performance)')
-parser.add_argument('--bm3_reg_weight', type=float, default=1e-4,
-					help='BM3 regularization weight (default: 1e-4, range: 1e-5 to 1e-3)')
-
-#===========================================================================
-# BERT4Rec-specific hyperparameters
-#===========================================================================
-parser.add_argument('--bert4rec_hidden_size', type=int, default=256,
-					help='BERT4Rec hidden dimension (default: 64, recommended: 256 for better performance)')
-parser.add_argument('--bert4rec_num_hidden_layers', type=int, default=2,
-					help='BERT4Rec number of transformer layers (default: 2, recommended: 2-4)')
-parser.add_argument('--bert4rec_num_attention_heads', type=int, default=4,
-					help='BERT4Rec number of attention heads (default: 2, recommended: 4-8 for better performance)')
-parser.add_argument('--bert4rec_intermediate_size', type=int, default=1024,
-					help='BERT4Rec feed-forward intermediate size (default: 256, recommended: 1024 for better performance)')
-parser.add_argument('--bert4rec_max_seq_length', type=int, default=200,
-					help='BERT4Rec maximum sequence length (default: 200, increase if users have long histories)')
-parser.add_argument('--bert4rec_attention_dropout', type=float, default=0.2,
-					help='BERT4Rec attention dropout rate (default: 0.2, range: 0.0-0.5)')
-parser.add_argument('--bert4rec_hidden_dropout', type=float, default=0.2,
-					help='BERT4Rec hidden dropout rate (default: 0.2, range: 0.0-0.5)')
-parser.add_argument('--bert4rec_warmup_steps', type=int, default=1000,
-					help='BERT4Rec learning rate warmup steps (default: 100, recommended: 1000-2000 for better convergence)')
 
 #===========================================================================
 # Training reranking arguments
 #===========================================================================
-parser.add_argument('--rerank_epochs', type=int, default=1,
+parser.add_argument('--rerank_epochs', type=int, default=2,
 					help='Number of training epochs for rerank models (e.g., BERT4Rec).')
 parser.add_argument('--rerank_batch_size', type=int, default=16,
 					help='Batch size for rerank model training.')
@@ -137,16 +109,12 @@ parser.add_argument('--qwen_max_candidates', type=int, default=50,
 					help='Maximum number of candidates for Qwen reranker during inference (default: 20). If None, uses retrieval_top_k from pipeline config.')
 parser.add_argument('--qwen_max_seq_length', type=int, default=2048,
 					help='Maximum sequence length for Qwen LLM models (default: 2048). Increase for longer prompts (e.g., 4096 for multimodal with images).')
-parser.add_argument('--vip5_max_candidates', type=int, default=50,
-					help='Maximum number of candidates for VIP5 Direct Task training (default: 100). Number of negatives + 1 positive = total candidates.')
-parser.add_argument('--vip5_max_text_length', type=int, default=128,
-					help='Maximum text sequence length for VIP5 (default: 128, increase for longer prompts)')
 parser.add_argument('--retrieval_eval_mode', type=str, default='full_ranking',
 					choices=['full_ranking', 'candidate_list'],
 					help='Evaluation mode for retrieval models: full_ranking (evaluate on all items) or candidate_list (evaluate only on pre-generated candidates, default: full_ranking).')
 parser.add_argument('--qwen_mode', type=str, default='text_only',
-					choices=['text_only', 'caption', 'VIU'],
-					help='Prompt mode for Qwen reranker: text_only (description only), caption, VIU')
+				choices=['text_only', 'caption', 'VIU', 'summary'],
+				help='Prompt mode for Qwen reranker: text_only (description), caption, VIU, or summary (use item_summary column)')
 parser.add_argument('--qwen_model', type=str, default='qwen3-0.6b',
 					help='Model for Qwen reranker. Can be: qwen3-0.6b, qwen3-2bvl, qwen3-1.7b, qwen3-4b, or any HuggingFace model name (e.g., Qwen/Qwen2.5-0.5B-Instruct)')
 parser.add_argument('--qwen_max_history', type=int, default=5,
@@ -171,10 +139,6 @@ parser.add_argument('--qwen_temperature', type=float, default=1.0,
 parser.add_argument('--rerank_action', type=str, default='train',
 					choices=['train', 'eval'],
 					help='Action for rerank: train (train model) or eval (load pretrained model and evaluate only, default: train). When eval, pass model path to --qwen_model and Unsloth will automatically load the adapter.')
-# Legacy: Keep qwen3vl_mode for backward compatibility (will be removed in future)
-parser.add_argument('--qwen3vl_mode', type=str, default=None,
-					choices=['caption', 'VIU', 'viu_small'],
-					help='[DEPRECATED] Use --qwen_mode instead. This argument is kept for backward compatibility only.')
 
 parser.add_argument('--max_text_length', type=int, default=256,
 					help='Maximum text length in characters for item metadata (default: 512, range: 256-512). Text will be truncated from the end if longer.')
@@ -182,7 +146,24 @@ parser.add_argument('--max_text_length', type=int, default=256,
 #===========================================================================
 # Script-specific arguments (not used by config, but added to avoid "unrecognized arguments" errors)
 #===========================================================================
-parser.add_argument('--retrieval_method', type=str, default=None, help='Retrieval method (used by train_retrieval.py)')
+parser.add_argument('--retrieval_method', type=str, default=None, help='Retrieval method (used by train_retrieval.py/train_pipeline.py)')
+parser.add_argument('--retrieval_top_k', type=int, default=200,
+					help='Number of candidates returned by Stage-1 retrieval for the pipeline.')
+parser.add_argument('--rerank_method', type=str, default='qwen',
+					help='Rerank method used by train_pipeline.py.')
+parser.add_argument('--rerank_top_k', type=int, default=50,
+					help='Final number of items returned by Stage-2 reranker.')
+parser.add_argument('--rerank_mode', type=str, default='retrieval',
+					choices=['retrieval', 'ground_truth'],
+					help='Pipeline rerank mode: use retrieval candidates or ground-truth plus negatives.')
+parser.add_argument('--qwen3vl_mode', type=str, default=None,
+					help='Legacy Qwen3-VL mode kept for backward compatibility.')
+parser.add_argument('--metric_k', type=int, default=10,
+					help='Primary metric cutoff used by training scripts.')
+parser.add_argument('--sample_users', type=int, default=0,
+					help='Sample this many users for train/val/test in train_pipeline.py. Use 0 for all users.')
+parser.add_argument('--sample_seed', type=int, default=None,
+					help='Random seed for --sample_users. Defaults to --seed when omitted.')
 parser.add_argument('--mode', type=str, default=None, help='Training mode (used by train_rerank_standalone.py)')
 arg = parser.parse_args()
 
