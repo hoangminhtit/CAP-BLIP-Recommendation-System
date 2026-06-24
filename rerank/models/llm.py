@@ -44,7 +44,26 @@ def _patch_lora_config_for_old_peft():
         print(f"Warning: failed to patch LoraConfig compatibility: {e}")
 
 
-def build_prompt_from_candidates(user_history, candidate_ids, item_id2text, max_candidates=None):
+def _get_prompt_max_text_chars(default=80):
+    try:
+        from config import arg
+        return getattr(arg, 'qwen_prompt_max_text_chars', default)
+    except ImportError:
+        return default
+
+
+def _truncate_prompt_text(text, max_chars=None):
+    if text is None:
+        return ""
+    text = str(text)
+    if max_chars is None:
+        max_chars = _get_prompt_max_text_chars()
+    if max_chars is None or max_chars <= 0 or len(text) <= max_chars:
+        return text
+    return text[:max_chars - 3] + "..."
+
+
+def build_prompt_from_candidates(user_history, candidate_ids, item_id2text, max_candidates=None, max_text_chars=None):
     """Build prompt for LLM reranking.
     
     Args:
@@ -59,9 +78,9 @@ def build_prompt_from_candidates(user_history, candidate_ids, item_id2text, max_
     if max_candidates is not None and len(candidate_ids) > max_candidates:
         candidate_ids = candidate_ids[:max_candidates]
     
-    history_text = "\n".join([f"- {h}" for h in user_history])
+    history_text = "\n".join([f"- {_truncate_prompt_text(h, max_text_chars)}" for h in user_history])
 
-    candidates = [item_id2text.get(cid, f"item_{cid}") for cid in candidate_ids]
+    candidates = [_truncate_prompt_text(item_id2text.get(cid, f"item_{cid}"), max_text_chars) for cid in candidate_ids]
     num_candidates = len(candidates)
     
     # Use letters (A-Z, a-z) for up to 52 candidates (LlamaRec style)
@@ -369,8 +388,14 @@ class LLMModel:
         
         # ✅ Use SFTConfig and SFTTrainer (like notebook Cell 8)
         print(hf_train_dataset[0]["text"])
+        try:
+            from config import arg
+            max_seq_length = getattr(arg, 'qwen_max_seq_length', 2048)
+        except ImportError:
+            max_seq_length = 2048
         training_args = SFTConfig(
             dataset_text_field="text",  # Field name in dataset
+            max_length=max_seq_length,
         output_dir="./qwen_rerank",
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,  # ✅ Use from config

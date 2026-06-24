@@ -101,6 +101,25 @@ class LRURecRetriever(BaseRetriever):
         self.user_history = train_data
         val_data: Dict[int, List[int]] | None = kwargs.get("val_data")
 
+        if "num_epochs" in kwargs and kwargs["num_epochs"] is not None:
+            self.num_epochs = int(kwargs["num_epochs"])
+        if "batch_size" in kwargs and kwargs["batch_size"] is not None:
+            self.batch_size = int(kwargs["batch_size"])
+        if "patience" in kwargs:
+            self.patience = kwargs["patience"]
+        if "num_workers" in kwargs and kwargs["num_workers"] is not None:
+            self.num_workers = int(kwargs["num_workers"])
+        if "lr" in kwargs and kwargs["lr"] is not None:
+            self.lr = float(kwargs["lr"])
+        if "weight_decay" in kwargs and kwargs["weight_decay"] is not None:
+            self.weight_decay = float(kwargs["weight_decay"])
+
+        print(
+            f"[LRURecRetriever] Training config: epochs={self.num_epochs}, "
+            f"batch_size={self.batch_size}, patience={self.patience}, "
+            f"lr={self.lr}, num_workers={self.num_workers}"
+        )
+
         cfg = NeuralLRUConfig(
             num_items=self.item_count,
             hidden_units=self.hidden_units,

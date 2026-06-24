@@ -7,7 +7,7 @@ import torch
 from copy import deepcopy
 
 from rerank.base import BaseReranker
-from rerank.models.llm import LLMModel, build_prompt_from_candidates, rank_candidates
+from rerank.models.llm import LLMModel, build_prompt_from_candidates, rank_candidates, _truncate_prompt_text
 # ✅ REFACTORED: Qwen3VLModel is no longer used. All modes (text_only, caption, VIU) use LLMModel.
 # from rerank.models.qwen3vl import Qwen3VLModel  # Deprecated
 from evaluation.metrics import recall_at_k
@@ -43,6 +43,33 @@ def _truncate_item_text(text: str, max_chars: int = 200) -> str:
         return text
     # Only truncate if text is longer than max_chars
     return text[:max_chars - 3] + "..."
+
+
+def _get_prompt_max_text_chars(default: int = 80) -> int:
+    """Get compact prompt text budget from config."""
+    try:
+        from config import arg
+        return getattr(arg, 'qwen_prompt_max_text_chars', default)
+    except ImportError:
+        return default
+
+
+def _format_prompt_item(meta: Dict[str, Any], item_id: int, mode: str) -> str:
+    """Format one item compactly for Qwen prompts."""
+    max_chars = _get_prompt_max_text_chars()
+    aux_chars = max(24, max_chars // 2)
+    text = _truncate_prompt_text(meta.get("text", f"item_{item_id}"), max_chars)
+
+    if mode == "caption":
+        caption = _truncate_prompt_text(meta.get("caption", ""), aux_chars)
+        return f"{text} (Image: {caption})" if caption else text
+    if mode == "VIU":
+        viu = _truncate_prompt_text(meta.get("viu", ""), aux_chars)
+        return f"{text} (VIU: {viu})" if viu else text
+    if mode == "summary":
+        summary = meta.get("item_summary") or meta.get("summary")
+        return _truncate_prompt_text(summary, max_chars) if summary else text
+    return text
 
 
 def _count_prompt_tokens(
@@ -332,48 +359,12 @@ class QwenReranker(BaseReranker):
                         history_texts = []
                         for item_id in history[-self.max_history:]:
                             meta = self.item_meta.get(item_id, {})
-                            text = meta.get("text", f"item_{item_id}")
-                            if self.mode == "caption":
-                                caption = meta.get("caption", "")
-                                if caption:
-                                    history_texts.append(f"{text} (Image: {caption})")
-                                else:
-                                    history_texts.append(text)
-                            elif self.mode == "VIU":
-                                viu = meta.get("viu", "")
-                                if viu:
-                                    history_texts.append(f"{text} (VIU: {viu})")
-                                else:
-                                    history_texts.append(text)
-                            elif self.mode == "summary":
-                                summary = meta.get("item_summary") or meta.get("summary")
-                                if summary:
-                                    history_texts.append(summary)
-                                else:
-                                    history_texts.append(text)
+                            history_texts.append(_format_prompt_item(meta, item_id, self.mode))
                         
                         candidate_texts = []
                         for item_id in candidates:
                             meta = self.item_meta.get(item_id, {})
-                            text = meta.get("text", f"item_{item_id}")
-                            if self.mode == "caption":
-                                caption = meta.get("caption", "")
-                                if caption:
-                                    candidate_texts.append(f"{text} (Image: {caption})")
-                                else:
-                                    candidate_texts.append(text)
-                            elif self.mode == "VIU":
-                                viu = meta.get("viu", "")
-                                if viu:
-                                    candidate_texts.append(f"{text} (VIU: {viu})")
-                                else:
-                                    candidate_texts.append(text)
-                            elif self.mode == "summary":
-                                summary = meta.get("item_summary") or meta.get("summary")
-                                if summary:
-                                    candidate_texts.append(summary)
-                                else:
-                                    candidate_texts.append(text)
+                            candidate_texts.append(_format_prompt_item(meta, item_id, self.mode))
                         
                         history_str = "\n".join([f"- {h}" for h in history_texts]) if history_texts else "No previous interactions."
                         # Use letters (LlamaRec style) instead of numbers
@@ -511,48 +502,12 @@ Candidate items:
                 history_texts = []
                 for item_id in history[-self.max_history:]:
                     meta = self.item_meta.get(item_id, {})
-                    text = meta.get("text", f"item_{item_id}")
-                    if self.mode == "caption":
-                        caption = meta.get("caption", "")
-                        if caption:
-                            history_texts.append(f"{text} (Image: {caption})")
-                        else:
-                            history_texts.append(text)
-                    elif self.mode == "VIU":
-                        viu = meta.get("viu", "")
-                        if viu:
-                            history_texts.append(f"{text} (VIU: {viu})")
-                        else:
-                            history_texts.append(text)
-                    elif self.mode == "summary":
-                        summary = meta.get("item_summary") or meta.get("summary")
-                        if summary:
-                            history_texts.append(summary)
-                        else:
-                            history_texts.append(text)
+                    history_texts.append(_format_prompt_item(meta, item_id, self.mode))
                 
                 candidate_texts = []
                 for item_id in candidates:
                     meta = self.item_meta.get(item_id, {})
-                    text = meta.get("text", f"item_{item_id}")
-                    if self.mode == "caption":
-                        caption = meta.get("caption", "")
-                        if caption:
-                            candidate_texts.append(f"{text} (Image: {caption})")
-                        else:
-                            candidate_texts.append(text)
-                    elif self.mode == "VIU":
-                        viu = meta.get("viu", "")
-                        if viu:
-                            candidate_texts.append(f"{text} (VIU: {viu})")
-                        else:
-                            candidate_texts.append(text)
-                    elif self.mode == "summary":
-                        summary = meta.get("item_summary") or meta.get("summary")
-                        if summary:
-                            candidate_texts.append(summary)
-                        else:
-                            candidate_texts.append(text)
+                    candidate_texts.append(_format_prompt_item(meta, item_id, self.mode))
                 
                 # Use letters (LlamaRec style) instead of numbers
                 from rerank.models.llm import LETTERS
@@ -1099,7 +1054,7 @@ Candidate items:
             if self.mode == "caption":
                 caption = meta.get("caption", "")
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
                     history_texts.append(f"{text} (Image: {caption})")
@@ -1108,7 +1063,7 @@ Candidate items:
             elif self.mode == "VIU":
                 viu = meta.get("viu", "")
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     history_texts.append(f"{text} (VIU: {viu})")
@@ -1120,12 +1075,12 @@ Candidate items:
                     history_texts.append(summary)
                 else:
                     text = meta.get("text", f"item_{item_id}")
-                    truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                    truncate_limit = _get_prompt_max_text_chars()
                     text = _truncate_item_text(text, max_chars=truncate_limit)
                     history_texts.append(text)
             else:  # text_only mode
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 history_texts.append(text)
         
@@ -1136,7 +1091,7 @@ Candidate items:
             if self.mode == "caption":
                 caption = meta.get("caption", "")
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
                     candidate_texts.append(f"{text} (Image: {caption})")
@@ -1145,7 +1100,7 @@ Candidate items:
             elif self.mode == "VIU":
                 viu = meta.get("viu", "")
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     candidate_texts.append(f"{text} (VIU: {viu})")
@@ -1157,12 +1112,12 @@ Candidate items:
                     candidate_texts.append(summary)
                 else:
                     text = meta.get("text", f"item_{item_id}")
-                    truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                    truncate_limit = _get_prompt_max_text_chars()
                     text = _truncate_item_text(text, max_chars=truncate_limit)
                     candidate_texts.append(text)
             else:  # text_only mode
                 text = meta.get("text", f"item_{item_id}")
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 candidate_texts.append(text)
         
@@ -1216,8 +1171,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
                     history_texts.append(f"{text} (Image: {caption})")
@@ -1228,8 +1182,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     history_texts.append(f"{text} (VIU: {viu})")
@@ -1239,8 +1192,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 history_texts.append(text)
         
@@ -1253,8 +1205,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if caption:
                     candidate_texts.append(f"{text} (Image: {caption})")
@@ -1265,8 +1216,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 if viu:
                     candidate_texts.append(f"{text} (VIU: {viu})")
@@ -1276,8 +1226,7 @@ Candidate items:
                 text = meta.get("text", f"item_{item_id}")
                 # Avoid double truncation: text was already truncated to max_text_length during data preparation
                 # Only truncate if text is longer than max_text_length (shouldn't happen, but safety check)
-                # Use max(200, max_text_length) to ensure we don't truncate unnecessarily
-                truncate_limit = max(200, self.max_text_length) if hasattr(self, 'max_text_length') else 200
+                truncate_limit = _get_prompt_max_text_chars()
                 text = _truncate_item_text(text, max_chars=truncate_limit)
                 candidate_texts.append(text)
         

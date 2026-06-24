@@ -119,6 +119,8 @@ parser.add_argument('--qwen_model', type=str, default='qwen3-0.6b',
 					help='Model for Qwen reranker. Can be: qwen3-0.6b, qwen3-2bvl, qwen3-1.7b, qwen3-4b, or any HuggingFace model name (e.g., Qwen/Qwen2.5-0.5B-Instruct)')
 parser.add_argument('--qwen_max_history', type=int, default=5,
 					help='Maximum number of items in user history to use for Qwen reranker prompts (default: 5). History will be truncated to the last N items if longer.')
+parser.add_argument('--qwen_prompt_max_text_chars', type=int, default=80,
+					help='Maximum characters of item text used inside Qwen train/eval prompts. Keep small when reranking many candidates.')
 parser.add_argument('--qwen_gradient_accumulation_steps', type=int, default=1,
 					help='Gradient accumulation steps for Qwen LLM training (default: 2). Effective batch size = batch_size * gradient_accumulation_steps.')
 parser.add_argument('--qwen_warmup_steps', type=int, default=10,
