@@ -5,6 +5,8 @@ from functools import partial
 try:
     from mamba_ssm import Mamba
 except Exception as import_error:
+    MAMBA_IMPORT_ERROR = repr(import_error)
+
     class Mamba(nn.Module):
         """Kaggle-friendly fallback when mamba-ssm cannot be installed.
 
@@ -20,7 +22,7 @@ except Exception as import_error:
             if not Mamba._warned:
                 print(
                     "[SIGMA] WARNING: mamba_ssm import failed; using a lightweight "
-                    f"PyTorch fallback instead. Original error: {import_error}"
+                    f"PyTorch fallback instead. Original error: {MAMBA_IMPORT_ERROR}"
                 )
                 Mamba._warned = True
             inner_dim = int(d_model * expand)
