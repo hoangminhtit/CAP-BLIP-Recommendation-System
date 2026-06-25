@@ -2,7 +2,41 @@ import torch.nn.functional as F
 import torch
 from torch import nn
 from functools import partial
-from mamba_ssm import Mamba
+try:
+    from mamba_ssm import Mamba
+except Exception as import_error:
+    class Mamba(nn.Module):
+        """Kaggle-friendly fallback when mamba-ssm cannot be installed.
+
+        This keeps the SIGMA code runnable on environments without compiled
+        mamba/causal-conv1d wheels. It is not an exact Mamba SSM replacement,
+        so use a proper mamba-ssm installation for paper-level reproduction.
+        """
+
+        _warned = False
+
+        def __init__(self, d_model, d_state=None, d_conv=4, expand=2):
+            super().__init__()
+            if not Mamba._warned:
+                print(
+                    "[SIGMA] WARNING: mamba_ssm import failed; using a lightweight "
+                    f"PyTorch fallback instead. Original error: {import_error}"
+                )
+                Mamba._warned = True
+            inner_dim = int(d_model * expand)
+            padding = max(0, d_conv // 2)
+            self.in_proj = nn.Linear(d_model, inner_dim)
+            self.conv = nn.Conv1d(inner_dim, inner_dim, kernel_size=d_conv, padding=padding, groups=inner_dim)
+            self.gate = nn.Linear(d_model, inner_dim)
+            self.out_proj = nn.Linear(inner_dim, d_model)
+
+        def forward(self, x):
+            h = self.in_proj(x)
+            h_conv = self.conv(h.transpose(1, 2)).transpose(1, 2)
+            h_conv = h_conv[:, : x.size(1), :]
+            gate = torch.sigmoid(self.gate(x))
+            return self.out_proj(F.silu(h_conv) * gate)
+
 from recbole.model.abstract_recommender import SequentialRecommender
 from recbole.model.loss import BPRLoss
 from recbole.model.layers import TransformerEncoder, FeatureSeqEmbLayer, VanillaAttention

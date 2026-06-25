@@ -31,6 +31,29 @@ def preprocessed_csv_path(
     return data_root / "preprocessed" / folder / "dataset_single_export.csv"
 
 
+def candidate_preprocessed_csv_paths(
+    data_root: Path,
+    dataset_code: str,
+    min_rating: int,
+    min_uc: int,
+    min_sc: int,
+) -> list[Path]:
+    """Return likely CSV locations for repo-root and Kaggle cwd workflows."""
+    candidates = [
+        preprocessed_csv_path(data_root, dataset_code, min_rating, min_uc, min_sc),
+        preprocessed_csv_path(Path.cwd() / "data", dataset_code, min_rating, min_uc, min_sc),
+        preprocessed_csv_path(REPO_ROOT / "data", dataset_code, min_rating, min_uc, min_sc),
+    ]
+    unique = []
+    seen = set()
+    for path in candidates:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(path)
+    return unique
+
+
 def build_sigma_interactions(df: pd.DataFrame) -> pd.DataFrame:
     required = {"user_id", "item_new_id", "split"}
     missing = sorted(required - set(df.columns))
@@ -83,16 +106,33 @@ def main() -> None:
 
     data_root = resolve_repo_path(args.data_root)
     output_root = resolve_repo_path(args.output_root)
-    source_csv = resolve_repo_path(args.source_csv) if args.source_csv else preprocessed_csv_path(
-        data_root,
-        args.dataset_code,
-        args.min_rating,
-        args.min_uc,
-        args.min_sc,
-    )
+
+    if data_root.suffix == ".inter":
+        raise ValueError(
+            "--data_root must point to the repo data directory, not the output .inter file. "
+            "Use --output_root for SIGMA/RecBole output. Example: "
+            "--data_root /kaggle/working/CAP-BLIP-Recommendation-System/data "
+            "--output_root /kaggle/working/CAP-BLIP-Recommendation-System/experiments/SIGMA/dataset"
+        )
+
+    if args.source_csv:
+        source_csv = resolve_repo_path(args.source_csv)
+        searched_paths = [source_csv]
+    else:
+        searched_paths = candidate_preprocessed_csv_paths(
+            data_root,
+            args.dataset_code,
+            args.min_rating,
+            args.min_uc,
+            args.min_sc,
+        )
+        source_csv = next((path for path in searched_paths if path.exists()), searched_paths[0])
+
     if not source_csv.exists():
         raise FileNotFoundError(
-            f"Missing {source_csv}. Run data_prepare.py first or pass --source_csv."
+            "Missing dataset_single_export.csv. Run data_prepare.py first, pass --source_csv, "
+            "or ensure --data_root points to the directory that contains preprocessed/.\n"
+            "Searched:\n  " + "\n  ".join(str(path) for path in searched_paths)
         )
 
     sigma_dataset_name = args.sigma_dataset_name or f"sigma_{args.dataset_code}"
