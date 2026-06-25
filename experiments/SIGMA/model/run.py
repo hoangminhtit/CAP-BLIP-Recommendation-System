@@ -4,6 +4,7 @@ import argparse
 from logging import getLogger
 from pathlib import Path
 import numpy as np
+import torch
 from recbole.utils import init_logger, init_seed
 from recbole.trainer import Trainer
 #from mamba4rec import Mamba4Rec
@@ -38,6 +39,17 @@ def patch_numpy_for_recbole() -> None:
         np.int_ = np.int64
     if not hasattr(np, "bool_"):
         np.bool_ = np.bool
+
+
+def patch_torch_load_for_recbole() -> None:
+    """RecBole checkpoints need legacy torch.load behavior on PyTorch >= 2.6."""
+    original_load = torch.load
+
+    def recbole_compatible_load(*args, **kwargs):
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    torch.load = recbole_compatible_load
 
 
 if __name__ == '__main__':
@@ -76,6 +88,7 @@ if __name__ == '__main__':
         config_dict["gpu_id"] = args.gpu_id
 
     patch_numpy_for_recbole()
+    patch_torch_load_for_recbole()
     config = Config(model=SIGMA, config_file_list=[str(config_file)], config_dict=config_dict)
     init_seed(config['seed'], config['reproducibility'])
     
