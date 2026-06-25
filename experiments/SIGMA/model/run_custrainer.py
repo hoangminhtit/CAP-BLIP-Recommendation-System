@@ -3,6 +3,7 @@ import logging
 import argparse
 from logging import getLogger
 from pathlib import Path
+import numpy as np
 from recbole.utils import init_logger, init_seed
 #from recbole.trainer import Trainer
 #from mamba4rec import Mamba4Rec
@@ -24,6 +25,18 @@ from recbole.utils import (
     get_environment,
 )
 from custom_trainer import CustomTrainer  # 导入自定义的Trainer
+
+def patch_numpy_for_recbole() -> None:
+    """RecBole 1.2.0 still references NumPy aliases removed in NumPy 2.x."""
+    if not hasattr(np, "float_"):
+        np.float_ = np.float64
+    if not hasattr(np, "complex_"):
+        np.complex_ = np.complex128
+    if not hasattr(np, "int_"):
+        np.int_ = np.int64
+    if not hasattr(np, "bool_"):
+        np.bool_ = np.bool
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run SIGMA with grouped custom evaluation.")
@@ -60,6 +73,7 @@ if __name__ == '__main__':
     if args.gpu_id is not None:
         config_dict["gpu_id"] = args.gpu_id
 
+    patch_numpy_for_recbole()
     config = Config(model=SIGMA, config_file_list=[str(config_file)], config_dict=config_dict)
     init_seed(config['seed'], config['reproducibility'])
     
