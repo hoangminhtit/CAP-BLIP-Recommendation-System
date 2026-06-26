@@ -11,8 +11,14 @@ from pathlib import Path
 from typing import Optional
 
 # Default values (can be overridden by config)
-EXPERIMENT_ROOT = 'experiments'
-RAW_DATASET_ROOT_FOLDER = 'data'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+EXPERIMENT_ROOT = str(PROJECT_ROOT / 'experiments')
+RAW_DATASET_ROOT_FOLDER = str(PROJECT_ROOT / 'data')
+
+
+def _resolve_data_root(data_path: Optional[str] = None) -> Path:
+    root = Path(data_path) if data_path is not None else Path(RAW_DATASET_ROOT_FOLDER)
+    return root if root.is_absolute() else PROJECT_ROOT / root
 
 
 def get_preprocessed_folder_path(
@@ -34,8 +40,7 @@ def get_preprocessed_folder_path(
     Returns:
         Path to preprocessed folder
     """
-    root = data_path if data_path is not None else RAW_DATASET_ROOT_FOLDER
-    preprocessed_root = Path(root) / "preprocessed"
+    preprocessed_root = _resolve_data_root(data_path) / "preprocessed"
     folder_name = f"{dataset_code}_min_rating{min_rating}-min_uc{min_uc}-min_sc{min_sc}"
     return preprocessed_root / folder_name
 

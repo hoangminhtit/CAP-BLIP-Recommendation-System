@@ -1,9 +1,11 @@
 #hhh%%writefile config.py
 import argparse
 import os
+from pathlib import Path
 
 
-EXPERIMENT_ROOT = 'experiments'
+PROJECT_ROOT = Path(__file__).resolve().parent
+EXPERIMENT_ROOT = str(PROJECT_ROOT / 'experiments')
 
 
 parser = argparse.ArgumentParser(description='Configuration for the project.')
@@ -169,8 +171,16 @@ parser.add_argument('--sample_seed', type=int, default=None,
 parser.add_argument('--mode', type=str, default=None, help='Training mode (used by train_rerank_standalone.py)')
 arg = parser.parse_args()
 
-# Set RAW_DATASET_ROOT_FOLDER based on data_path argument
-# If data_path is provided, use it; otherwise use default "data" folder
-RAW_DATASET_ROOT_FOLDER = arg.data_path if arg.data_path is not None else 'data'
+def _resolve_project_path(path_value):
+	if path_value is None:
+		return None
+	path = Path(path_value)
+	return str(path if path.is_absolute() else PROJECT_ROOT / path)
+
+
+# Set RAW_DATASET_ROOT_FOLDER based on data_path argument.
+# If data_path is omitted, resolve "data" from the repository root so scripts
+# still work when launched via an absolute path from Kaggle notebooks.
+RAW_DATASET_ROOT_FOLDER = _resolve_project_path(arg.data_path) if arg.data_path is not None else str(PROJECT_ROOT / 'data')
 
 
